@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Online Hearts</title>
+    </head>
+    <body>
+        <script type="module">
+         import * as preact from 'https://esm.sh/preact';
+         import * as preactHooks from 'https://esm.sh/preact/hooks';
+         import "https://esm.sh/@prefresh/core";
+         import {flush as flushUpdates} from "https://esm.sh/@prefresh/utils";
+
+         self.$RefreshReg$ = (type, id) => {
+             self.__PREFRESH__.register(type, "gorgus" + " " + id);
+         };
+
+         self.$RefreshSig$ = () => {
+             let status = 'begin';
+             let savedType;
+             return (type, key, forceReset, getCustomHooks) => {
+                 if (!savedType) savedType = type;
+                 status = self.__PREFRESH__.sign(type || savedType, key, forceReset, getCustomHooks, status);
+                 return type;
+             };
+         };
+
+         self.preact = preact;
+         self.preactHooks = preactHooks;
+         self.flushUpdates = flushUpdates;
+        </script>
+        <script src="http://localhost:8080/skewer"></script>
+    </body>
+</html>

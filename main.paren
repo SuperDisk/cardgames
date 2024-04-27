@@ -1,0 +1,16 @@
+(defcomponent -zow (((ctr set-ctr) (use-state 0))) ()
+  (psx
+   (:div ()
+         (:p () (+ "That's my number: " ctr)
+             " "
+             (:button ((on-click (lambda () (set-ctr (1+ ctr)))))
+                      "Clickeroni")))))
+
+(defcomponent -wow () ()
+  (psx
+   (:div ()
+         (:h3 () "My cool component can hot reload")
+         (:-zow () nil))))
+
+(let ((-app (psx (:-wow ()))))
+  ((@ preact render) -app (@ document body)))
