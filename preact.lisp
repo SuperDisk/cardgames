@@ -22,6 +22,9 @@
   (let ((name (symbol-name symbol)))
     (char= (char name 0) #\-)))
 
+(defpsmacro fwrap (var &body body)
+  `(funcall (lambda (,var) ,@body) ,var))
+
 (defmacro+ps psx (element)
   (cond
     ((atom element) element)

@@ -6,10 +6,27 @@
              (:button ((on-click (lambda () (set-ctr (1+ ctr)))))
                       "Clickeroni")))))
 
-(defcomponent -wow () ()
+(defcomponent -wow (((ctr set-ctr) (use-state 0))) ()
   (psx
-   (:div ()
-         (:h3 () "My cool component can hot reload")
+   (:div ((style (create
+                  width "100vw"
+                  height "100vh"
+                  background-color "lightgreen")))
+         (:h3 ((style (create margin 0))) "My cool component can ")
+         (:div ()
+               (:p () "Counter: " ctr)
+               (:ol ()
+                    (loop for i from 0 to 20
+                          collect
+                          (fwrap i (psx (:li ()
+                                           "Item "
+                                           i
+                                           " "
+                                           (:button ((on-click (lambda ()
+                                                                 (set-ctr (+ ctr i)))))
+                                                    "Add " i)))))
+                    (:li () "Set to 0"
+                         (:button ((on-click (lambda () (set-ctr 0)))) "click"))))
          (:-zow () nil))))
 
 (let ((-app (psx (:-wow ()))))

@@ -4,9 +4,17 @@
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Online Hearts</title>
+        <style>
+         html, body {
+             margin: 0;
+             padding: 0;
+             height: 100%; /* Ensures the html and body are also full height */
+         }
+        </style>
     </head>
     <body>
         <script type="module">
+         import "https://esm.sh/preact/debug";
          import * as preact from 'https://esm.sh/preact';
          import * as preactHooks from 'https://esm.sh/preact/hooks';
          import "https://esm.sh/@prefresh/core";
