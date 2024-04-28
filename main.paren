@@ -1,33 +1,81 @@
-(defcomponent -zow (((ctr set-ctr) (use-state 0))) ()
-  (psx
-   (:div ()
-         (:p () (+ "That's my number: " ctr)
-             " "
-             (:button ((on-click (lambda () (set-ctr (1+ ctr)))))
-                      "Clickeroni")))))
+(js-import (-dnd-context use-draggable) dnd-kit)
 
-(defcomponent -wow (((ctr set-ctr) (use-state 0))) ()
+(defcomponent -card ((drag-stuff (use-draggable (create id (@ props id)))))
+  (props)
+  (with-slots (attributes listeners set-node-ref transform) drag-stuff
+    (psx
+     (:div ((ref set-node-ref)
+               (:... listeners)
+               (:... attributes)
+               (style (create
+                       "background-color" "white"
+                       "border-radius" "10px"
+                       "border" "solid"
+                       "border-width" "2px"
+                       "position" "absolute"
+                       "left" (when transform (@ transform x))
+                       "top" (if transform (@ transform y) (+ (* (@ props idx) 40) "px"))
+ ;                      "transform" (when transform
+ ;                                    (+ "translate3d(" (@ transform x) "px, " (@ transform y) "px, 0)"))
+                       "z-index" (when transform 200)
+                       )))
+              (:img ((src (@ props img))))))))
+
+(defcomponent -column () (props)
   (psx
    (:div ((style (create
+                  "padding" "10px"
+                  "margin" "5px"
+                  "border" "1px solid #ccc"
+                  "text-align" "center"
+                  "height" "700px"
+
+                  "width" "150px"
+
+                  "display" "flex"
+                  "justify-content" "flex-start"
+                  "flex-direction" "column")))
+         (loop for i from 1 to 10
+              collect
+              (psx
+               (:-card ((idx i)
+                        (id (+ (@ props id) i))
+                        (img (+ "src/assets/1_" (@ props id) "_" i "@1x.png")))))))))
+
+(defcomponent -cards (((a b) (use-state 0))) ()
+  (psx
+   (:div ((style (create
+                  "display" "flex"
+                  "justify-content" "flex-start"
+                  "align-items" "flex-start"
+                  "padding" "20px")))
+         (:-column ((id "heart")))
+         (:-column ((id "spade")))
+         (:-column ((id "diamond")))
+         (:-column ((id "clover"))))))
+
+(defcomponent -game (((ctr set-ctr) (use-state 0))) ()
+  (psx
+   (:div ()
+         (:-cards ()))
+   (:div ((style (create
+                  position "absolute"
+                  left 0
+                  top 0
+                  "z-index" -1
                   width "100vw"
                   height "100vh"
-                  background-color "lightgreen")))
-         (:h3 ((style (create margin 0))) "My cool component can ")
-         (:div ()
-               (:p () "Counter: " ctr)
-               (:ol ()
-                    (loop for i from 0 to 20
-                          collect
-                          (fwrap i (psx (:li ()
-                                           "Item "
-                                           i
-                                           " "
-                                           (:button ((on-click (lambda ()
-                                                                 (set-ctr (+ ctr i)))))
-                                                    "Add " i)))))
-                    (:li () "Set to 0"
-                         (:button ((on-click (lambda () (set-ctr 0)))) "click"))))
-         (:-zow () nil))))
+                  background-color "rgb(36, 83, 36)"
+                  background-image "url(src/assets/background_tile_transparent@2x.png)")))
+         (:div ((style (create
+                        "width" "100%"
+                        "height" "100%"
+                        "top" 0
+                        "left" 0
+                        "mix-blend-mode" "overlay"
+                        "background" "-webkit-radial-gradient(top,ellipse farthest-corner,hsla(0,0%,100%,.16) 100%,hsla(0,0%,100%,.08) 0),-webkit-radial-gradient(top,ellipse farthest-corner,hsla(0,0%,100%,.32) 0,hsla(0,0%,100%,0) 100%),-webkit-radial-gradient(top,ellipse farthest-corner,hsla(0,0%,100%,.32) 0,hsla(0,0%,100%,0) 64%)")))))))
 
-(let ((-app (psx (:-wow ()))))
+(let ((-app (psx
+             (:-dnd-context ()
+                            (:-game ())))))
   ((@ preact render) -app (@ document body)))
