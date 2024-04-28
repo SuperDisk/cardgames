@@ -1,26 +1,39 @@
 (js-import (-dnd-context use-draggable) dnd-kit)
+(js-import (use-gsap) gsap)
 
-(defcomponent -card ((drag-stuff (use-draggable (create id (@ props id)))))
+(defcomponent -card ((dg (use-ref))
+                     (_ (use-effect
+                         (lambda ()
+                           (setf (@ dg current)
+                                 (chain draggable
+                                        (create (+ "#" (@ props id))
+                                                (create
+                                                 type "x,y"
+
+                                                 live-snap
+                                                 (create
+                                                  x (lambda (value)
+                                                      (* 50
+                                                         (chain -Math (round (/ value 50)))))
+                                                  y (lambda (value)
+                                                      (* 50
+                                                         (chain -Math (round (/ value 50)))))
+                                                  radius 35)
+                                                 ))
+                                        0))
+                           (lambda ()
+                             (chain dg current (kill))))
+                         (array))))
   (props)
-  (with-slots (attributes listeners set-node-ref transform) drag-stuff
-    (psx
-     ((@ console log) "re-rendering")
-     (:div ((ref set-node-ref)
-            (:... listeners)
-            (:... attributes)
-            (style (create
-                    "background-color" "white"
-                    "border-radius" "10px"
-                    "border" "solid"
-                    "border-width" "1px"
-                    "position" "absolute"
-                    "transition" (when (not transform)
-                                   "left 0.3s ease-in-out, top 0.3s ease-in-out")
-                    "left" (if transform (@ transform x) (+ (* (@ props col) 200) "px"))
-                    "top" (if transform (@ transform y) (+ (* (@ props row) 40) "px"))
-                    "z-index" (when transform 200)
-                    )))
-           (:img ((src (@ props img))))))))
+  (psx
+   (:div ((id (@ props id))
+          (style (create
+                  "background-color" "white"
+                  "border-radius" "10px"
+                  "border" "solid"
+                  "border-width" "1px"
+                  "position" "absolute")))
+         (:img ((src (@ props img)))))))
 
 (defcomponent -column () (props)
   (psx
@@ -53,12 +66,12 @@
          (let ((col 0))
            (loop for suit in '("heart" "spade" "diamond" "clover")
                  append
-                 (loop for row from 1 to 10
+                 (loop for row from 1 to 13
                        collect
                        (psx (:-card (
                                      (col col)
                                      (row row)
-                                     (id (+ col " " row))
+                                     (id (+ "shit" col "_" row))
                                      (img (+ "src/assets/1_" suit "_" row "@1x.png")))))
                        finally (incf col)))))))
 

@@ -1,6 +1,10 @@
 import * as preact from 'preact';
 import * as preactHooks from 'preact/hooks';
 import * as dndKit from '@dnd-kit/core'
+import { gsap } from 'gsap';
+import { Draggable } from 'gsap/Draggable';
+
+gsap.registerPlugin(Draggable);
 
 import "@prefresh/core";
 import {flush as flushUpdates} from "@prefresh/utils";
@@ -23,3 +27,5 @@ self.preact = preact;
 self.preactHooks = preactHooks;
 self.flushUpdates = flushUpdates;
 self.dndKit = dndKit;
+self.gsap = gsap;
+self.draggable = Draggable;
