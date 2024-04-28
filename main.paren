@@ -4,22 +4,23 @@
   (props)
   (with-slots (attributes listeners set-node-ref transform) drag-stuff
     (psx
+     ((@ console log) "re-rendering")
      (:div ((ref set-node-ref)
-               (:... listeners)
-               (:... attributes)
-               (style (create
-                       "background-color" "white"
-                       "border-radius" "10px"
-                       "border" "solid"
-                       "border-width" "2px"
-                       "position" "absolute"
-                       "left" (when transform (@ transform x))
-                       "top" (if transform (@ transform y) (+ (* (@ props idx) 40) "px"))
- ;                      "transform" (when transform
- ;                                    (+ "translate3d(" (@ transform x) "px, " (@ transform y) "px, 0)"))
-                       "z-index" (when transform 200)
-                       )))
-              (:img ((src (@ props img))))))))
+            (:... listeners)
+            (:... attributes)
+            (style (create
+                    "background-color" "white"
+                    "border-radius" "10px"
+                    "border" "solid"
+                    "border-width" "1px"
+                    "position" "absolute"
+                    "transition" (when (not transform)
+                                   "left 0.3s ease-in-out, top 0.3s ease-in-out")
+                    "left" (if transform (@ transform x) (+ (* (@ props col) 200) "px"))
+                    "top" (if transform (@ transform y) (+ (* (@ props row) 40) "px"))
+                    "z-index" (when transform 200)
+                    )))
+           (:img ((src (@ props img))))))))
 
 (defcomponent -column () (props)
   (psx
@@ -36,11 +37,11 @@
                   "justify-content" "flex-start"
                   "flex-direction" "column")))
          (loop for i from 1 to 10
-              collect
-              (psx
-               (:-card ((idx i)
-                        (id (+ (@ props id) i))
-                        (img (+ "src/assets/1_" (@ props id) "_" i "@1x.png")))))))))
+               collect
+               (psx
+                (:-card ((idx i)
+                         (id (+ (@ props id) i))
+                         (img (+ "src/assets/1_" (@ props id) "_" i "@1x.png")))))))))
 
 (defcomponent -cards (((a b) (use-state 0))) ()
   (psx
@@ -49,10 +50,17 @@
                   "justify-content" "flex-start"
                   "align-items" "flex-start"
                   "padding" "20px")))
-         (:-column ((id "heart")))
-         (:-column ((id "spade")))
-         (:-column ((id "diamond")))
-         (:-column ((id "clover"))))))
+         (let ((col 0))
+           (loop for suit in '("heart" "spade" "diamond" "clover")
+                 append
+                 (loop for row from 1 to 10
+                       collect
+                       (psx (:-card (
+                                     (col col)
+                                     (row row)
+                                     (id (+ col " " row))
+                                     (img (+ "src/assets/1_" suit "_" row "@1x.png")))))
+                       finally (incf col)))))))
 
 (defcomponent -game (((ctr set-ctr) (use-state 0))) ()
   (psx
