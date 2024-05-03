@@ -1,25 +1,54 @@
 (js-import (-dnd-context use-draggable) dnd-kit)
-(js-import (use-gsap) gsap)
 
 (defcomponent -card ((dg (use-ref))
-                     (_ (use-effect
-                         (lambda ()
+                     (_ (use-g-s-a-p
+                         (lambda (context context-safe)
                            (setf (@ dg current)
                                  (chain draggable
                                         (create (+ "#" (@ props id))
                                                 (create
                                                  type "x,y"
 
-                                                 live-snap
-                                                 (create
-                                                  x (lambda (value)
-                                                      (* 50
-                                                         (chain -Math (round (/ value 50)))))
-                                                  y (lambda (value)
-                                                      (* 50
-                                                         (chain -Math (round (/ value 50)))))
-                                                  radius 35)
-                                                 ))
+                                                 on-press
+                                                 (context-safe
+                                                  (lambda ()
+                                                    ((@ gsap to)
+                                                     (@ dg current target)
+                                                     (create
+                                                      duration 0.3
+                                                      scale 1.1
+                                                      rotation -3
+                                                      box-shadow
+                                                      "0px 10px 20px rgba(0,0,0,0.3)"))))
+
+                                                 on-drag
+                                                 (lambda ()
+                                                   (chain console (log "yooooo")))
+
+                                                 on-drag-end
+                                                 (lambda ()
+                                                   (if (chain this (hit-test "#shit2_13" "25%"))
+                                                       (alert "YOOOOOOOOo")))
+
+                                                 on-release
+                                                 (context-safe
+                                                  (lambda ()
+                                                    ((@ gsap to)
+                                                     (@ dg current target)
+                                                     (create
+                                                      duration 0.3
+                                                      rotation 0
+                                                      scale 1
+                                                      box-shadow
+                                                      "0px 10px 20px rgba(0,0,0,0.1)"))
+                                                    ((@ gsap to)
+                                                     (@ dg current target)
+                                                     (create
+                                                      x 0
+                                                      y 0
+                                                      duration 0.5
+                                                      ease "power1.inOut"))
+                                                    ))))
                                         0))
                            (lambda ()
                              (chain dg current (kill))))
@@ -32,48 +61,36 @@
                   "border-radius" "10px"
                   "border" "solid"
                   "border-width" "1px"
-                  "position" "absolute")))
+                  "position" "absolute"
+                  "left" (* (@ props col) 200)
+                  "top" (* (@ props row) 50)
+                  )))
          (:img ((src (@ props img)))))))
 
-(defcomponent -column () (props)
-  (psx
-   (:div ((style (create
-                  "padding" "10px"
-                  "margin" "5px"
-                  "border" "1px solid #ccc"
-                  "text-align" "center"
-                  "height" "700px"
-
-                  "width" "150px"
-
-                  "display" "flex"
-                  "justify-content" "flex-start"
-                  "flex-direction" "column")))
-         (loop for i from 1 to 10
-               collect
-               (psx
-                (:-card ((idx i)
-                         (id (+ (@ props id) i))
-                         (img (+ "src/assets/1_" (@ props id) "_" i "@1x.png")))))))))
-
-(defcomponent -cards (((a b) (use-state 0))) ()
+(defcomponent -cards () ()
   (psx
    (:div ((style (create
                   "display" "flex"
                   "justify-content" "flex-start"
                   "align-items" "flex-start"
                   "padding" "20px")))
-         (let ((col 0))
-           (loop for suit in '("heart" "spade" "diamond" "clover")
-                 append
-                 (loop for row from 1 to 13
-                       collect
-                       (psx (:-card (
-                                     (col col)
-                                     (row row)
-                                     (id (+ "shit" col "_" row))
-                                     (img (+ "src/assets/1_" suit "_" row "@1x.png")))))
-                       finally (incf col)))))))
+         (list
+          (let ((col 0))
+            (loop for suit in '("heart" "spade" "diamond" "clover")
+                  append
+                  (loop for row from 1 to 13
+                        collect
+                        (psx (:-card (
+                                      (col col)
+                                      (row row)
+                                      (id (+ "shit" col "_" row))
+                                      (img (+ "src/assets/1_" suit "_" row "@1x.png")))))
+                        finally (incf col))))
+          (psx
+           (:-card ((col 5)
+                    (row 0)
+                    (id (+ "shite" 5 "_" 0))
+                    (img (+ "src/assets/1_" "heart" "_" 1 "@1x.png")))))))))
 
 (defcomponent -game (((ctr set-ctr) (use-state 0))) ()
   (psx

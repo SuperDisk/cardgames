@@ -4,4 +4,4 @@
   (:use #:cl))
 
 (defpackage #:preact
-  (:use #:cl #:parenscript #:paren6))
+  (:use #:cl #:parenscript))

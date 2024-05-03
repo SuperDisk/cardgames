@@ -9,6 +9,7 @@
 	"dependencies": {
 		"@dnd-kit/core": "^6.1.0",
 		"@formkit/drag-and-drop": "^0.0.38",
+		"@gsap/react": "^2.1.1",
 		"@prefresh/core": "^1.5.2",
 		"@prefresh/utils": "^1.2.0",
 		"gsap": "^3.12.5",
