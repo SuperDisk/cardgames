@@ -1,101 +1,218 @@
-(js-import (-dnd-context use-draggable) dnd-kit)
+(defun shuffle-array (array)
+  (loop for i from (1- (@ array length)) above 0 do
+    (let* ((j ((@ -Math floor) (* (chain -Math (random)) (1+ i))))
+           (temp (aref array i)))
+      (setf (aref array i) (aref array j))
+      (setf (aref array j) temp)))
+  array)
+
+(defun new-deck ()
+  (shuffle-array
+   (loop for suit in '(spade heart clover diamond)
+         append
+         (loop for num from 1 to 13
+               collect (list suit num)))))
+
+(defun subseq (list start &optional end)
+  (let ((end (or end (@ list length))))
+    (chain list (slice start end))))
+
+(defun make-tableaus ()
+  (let* ((deck (new-deck)))
+    (flet ((take (n)
+             (prog1
+                 (subseq deck 0 n)
+               (setf deck (subseq deck n)))))
+      (list (take 7) (take 7) (take 7) (take 7)
+            (take 6) (take 6) (take 6) (take 6)))))
+
+(defun card->index (card)
+  (destructuring-bind (suit num) card
+    (+ num
+       (* 13
+          (case suit
+            ((spade) 0)
+            ((clover) 1)
+            ((heart) 2)
+            ((diamond) 3))))))
+
+(defun card->id (card)
+  (destructuring-bind (suit num) card
+    (+ "card_" suit "_" num)))
+
+(defun id->card (id)
+  (let ((parts (chain id (split "_"))))
+    (list (aref parts 1)
+          (parse-int (aref parts 2)))))
+
+(defun card= (card1 card2)
+  (and (equal (aref card1 0) (aref card2 0))
+       (equal (aref card1 1) (aref card2 1))))
+
+(defun find-card (card tableaus)
+  (let ((col 0) (row 0))
+    (loop for tableau in tableaus do
+      (loop for maybe-card in tableau
+            when (card= card maybe-card)
+              do (return-from find-card (list col row))
+            do (incf row))
+      (incf col)
+      (setf row 0))))
+
+(defun move-card (tableau from to)
+  (let* ((tableau (structured-clone tableau))
+         (val (chain (aref tableau from) (pop))))
+    (chain (aref tableau to) (push val))
+    tableau))
+
+(defun without-idx (list idx)
+  (chain list (filter (lambda (val arr-idx) (not (= idx arr-idx))))))
 
 (defcomponent -card ((dg (use-ref))
-                     (_ (use-g-s-a-p
-                         (lambda (context context-safe)
+                     (card-ref (use-ref))
+                     (companions (use-ref))
+                     (start-x (use-ref))
+                     (start-y (use-ref))
+                     ((z-index-boosted set-z-index-boosted) (use-state false))
+                     (_ (use-effect
+                         (lambda ()
+                           (chain console (log "sending" (@ card-ref current) "to" (@ props row) (@ props col)))
+                           ((@ gsap to)
+                            (@ card-ref current)
+                            (create
+                             duration 0.3
+                             top (* (@ props row) 50)
+                             left (* (@ props col) 120))))
+                         (list (@ props row) (@ props col))))
+                     (_ (use-effect
+                         (lambda ()
+                           ;; (chain console (log "this shit is running again"))
                            (setf (@ dg current)
                                  (chain draggable
                                         (create (+ "#" (@ props id))
                                                 (create
-                                                 type "x,y"
+                                                 type "left,top"
+
+                                                 z-index-boost
+                                                 false
 
                                                  on-press
-                                                 (context-safe
-                                                  (lambda ()
-                                                    ((@ gsap to)
-                                                     (@ dg current target)
-                                                     (create
-                                                      duration 0.3
-                                                      scale 1.1
-                                                      rotation -3
-                                                      box-shadow
-                                                      "0px 10px 20px rgba(0,0,0,0.3)"))))
+                                                 (lambda ()
+                                                   (set-z-index-boosted true)
+
+                                                   (setf (@ start-x current) (@ this x))
+                                                   (setf (@ start-y current) (@ this y))
+                                                   (setf (@ companions current)
+                                                         (loop for id in (@ props lower-cards)
+                                                               for el = (chain document (get-element-by-id id))
+                                                               collect (create
+                                                                        element el
+                                                                        x (chain gsap (get-property el "x"))
+                                                                        y (chain gsap (get-property el "y")))))
+
+                                                   ((@ gsap to)
+                                                    (@ dg current 0 target)
+                                                    (create
+                                                     duration 0.3
+                                                     scale 1.1
+                                                     rotation -3
+                                                     box-shadow
+                                                     "0px 10px 20px rgba(0,0,0,0.3)")))
 
                                                  on-drag
                                                  (lambda ()
-                                                   (chain console (log "yooooo")))
-
-                                                 on-drag-end
-                                                 (lambda ()
-                                                   (if (chain this (hit-test "#shit2_13" "25%"))
-                                                       (alert "YOOOOOOOOo")))
+                                                   (let ((delta-x (- (@ this x) (@ start-x current)))
+                                                         (delta-y (- (@ this y) (@ start-y current))))
+                                                     (loop for companion in (@ companions current) do
+                                                       ((@ gsap set)
+                                                        (@ companion element)
+                                                        (create
+                                                         x (+ (@ companion x) delta-x)
+                                                         y (+ (@ companion y) delta-y))))))
 
                                                  on-release
-                                                 (context-safe
-                                                  (lambda ()
-                                                    ((@ gsap to)
-                                                     (@ dg current target)
-                                                     (create
-                                                      duration 0.3
-                                                      rotation 0
-                                                      scale 1
-                                                      box-shadow
-                                                      "0px 10px 20px rgba(0,0,0,0.1)"))
-                                                    ((@ gsap to)
-                                                     (@ dg current target)
-                                                     (create
-                                                      x 0
-                                                      y 0
-                                                      duration 0.5
-                                                      ease "power1.inOut"))
-                                                    ))))
-                                        0))
+                                                 (lambda ()
+                                                   (set-z-index-boosted false)
+                                                   (unless
+                                                       (loop for d in (@ props droppables)
+                                                             for idd = (card->id d)
+                                                             do
+                                                                (when (chain this (hit-test (+ "#" idd) "25%"))
+                                                                  ((@ props on-moved) idd)
+                                                                  (return true))
+                                                             finally
+                                                                (chain console (log "nope"))
+                                                                (return false))
+
+                                                     ((@ gsap to)
+                                                      (@ dg current 0 target)
+                                                      (create
+                                                       top (* (@ props row) 50)
+                                                       left (* (@ props col) 120))))
+
+                                                   ((@ gsap to)
+                                                    (@ dg current 0 target)
+                                                    (create
+                                                     duration 0.3
+                                                     rotation 0
+                                                     scale 1
+                                                     box-shadow "0px 10px 20px rgba(0,0,0,0.1)")))))))
                            (lambda ()
-                             (chain dg current (kill))))
-                         (array))))
+                             ;; (chain console (log "KILLING DRAGGABLE"))
+                             (chain dg current 0 (kill))))
+                         (list (@ props droppables)))))
   (props)
   (psx
    (:div ((id (@ props id))
+          (ref card-ref)
           (style (create
                   "background-color" "white"
-                  "border-radius" "10px"
+                  "border-radius" "7px"
                   "border" "solid"
                   "border-width" "1px"
                   "position" "absolute"
-                  "left" (* (@ props col) 200)
-                  "top" (* (@ props row) 50)
-                  )))
+                  "z-index" (if z-index-boosted 1000 (@ props row)))))
          (:img ((src (@ props img)))))))
 
-(defcomponent -cards () ()
-  (psx
-   (:div ((style (create
-                  "display" "flex"
-                  "justify-content" "flex-start"
-                  "align-items" "flex-start"
-                  "padding" "20px")))
-         (list
-          (let ((col 0))
-            (loop for suit in '("heart" "spade" "diamond" "clover")
-                  append
-                  (loop for row from 1 to 13
-                        collect
-                        (psx (:-card (
-                                      (col col)
-                                      (row row)
-                                      (id (+ "shit" col "_" row))
-                                      (img (+ "src/assets/1_" suit "_" row "@1x.png")))))
-                        finally (incf col))))
-          (psx
-           (:-card ((col 5)
-                    (row 0)
-                    (id (+ "shite" 5 "_" 0))
-                    (img (+ "src/assets/1_" "heart" "_" 1 "@1x.png")))))))))
+(defcomponent -cards (((tableaus set-tableaus) (use-state make-tableaus)))
+  ()
+  (let ((droppables (loop for tableau in tableaus
+                          collect (aref tableau (1- (@ tableau length))))))
+    (psx
+     (:div ((style (create
+                    "display" "flex"
+                    "justify-content" "flex-start"
+                    "align-items" "flex-start"
+                    "padding" "20px")))
+           (let ((col 0)
+                 (sorted-cards (list)))
+             (loop for tableau in tableaus do
+                   (loop for card in tableau
+                         for (suit num) = card
+                         for row = 1 then (1+ row) do
+                           (setf (aref sorted-cards (card->index card))
+                                 (psx (:-card
+                                       ((col col)
+                                        (row row)
+                                        (droppables (without-idx droppables col))
+                                        (lower-cards (chain tableau (slice row) (map #'card->id)))
+                                        (id (card->id card))
+                                        (key (card->id card))
+                                        (img (+ "src/assets/1_" suit "_" num "@1x.png"))
+                                        (on-moved
+                                         (fwrap col
+                                           (lambda (covered-card)
+                                             (destructuring-bind
+                                                 (newcol newrow)
+                                                 (find-card (id->card covered-card) tableaus)
+                                               (let ((new-tableaus (move-card tableaus col newcol)))
+                                                 (set-tableaus new-tableaus)))))))))))
+                   do (incf col))
+             sorted-cards)))))
 
-(defcomponent -game (((ctr set-ctr) (use-state 0))) ()
+(defcomponent -game () ()
   (psx
-   (:div ()
-         (:-cards ()))
+   (:div () (:-cards ()))
    (:div ((style (create
                   position "absolute"
                   left 0
@@ -113,7 +230,5 @@
                         "mix-blend-mode" "overlay"
                         "background" "-webkit-radial-gradient(top,ellipse farthest-corner,hsla(0,0%,100%,.16) 100%,hsla(0,0%,100%,.08) 0),-webkit-radial-gradient(top,ellipse farthest-corner,hsla(0,0%,100%,.32) 0,hsla(0,0%,100%,0) 100%),-webkit-radial-gradient(top,ellipse farthest-corner,hsla(0,0%,100%,.32) 0,hsla(0,0%,100%,0) 64%)")))))))
 
-(let ((-app (psx
-             (:-dnd-context ()
-                            (:-game ())))))
+(let ((-app (psx (:-game ()))))
   ((@ preact render) -app (@ document body)))
