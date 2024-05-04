@@ -79,20 +79,22 @@
                      (companions (use-ref))
                      (start-x (use-ref))
                      (start-y (use-ref))
-                     ((z-index-boosted set-z-index-boosted) (use-state false))
+                     ((z-index-boosted set-z-index-boosted) (use-state
+                                                             (lambda ()
+                                                               (dbg "REMOUNTING CARD")
+                                                               false)))
                      (_ (use-effect
                          (lambda ()
-                           #+nil (chain console (log "sending" (@ card-ref current) "to" (@ props row) (@ props col)))
-                           ((@ gsap to)
-                            (@ card-ref current)
-                            (create
-                             duration 0.3
-                             top (* (@ props row) 50)
-                             left (* (@ props col) 120))))
-                         (list (@ props row) (@ props col))))
+                           (when (not (@ props being-dragged))
+                             ((@ gsap to)
+                              (@ card-ref current)
+                              (create
+                               duration 0.3
+                               top (* (@ props row) 50)
+                               left (* (@ props col) 120)))))
+                         (list (@ props row) (@ props col) (@ props being-dragged))))
                      (_ (use-effect
                          (lambda ()
-                           ;; (chain console (log "this shit is running again"))
                            (setf (@ dg current)
                                  (chain draggable
                                         (create (+ "#" (@ props id))
@@ -104,6 +106,7 @@
 
                                                  on-press
                                                  (lambda ()
+                                                   (set-z-index-boosted true)
                                                    (setf (@ start-x current) (@ this x))
                                                    (setf (@ start-y current) (@ this y))
                                                    (setf (@ companions current)
@@ -113,10 +116,7 @@
                                                                         element el
                                                                         x (chain gsap (get-property el "left"))
                                                                         y (chain gsap (get-property el "top")))))
-
-                                                   (dbg (@ companions current))
                                                    (unless (@ companions current length)
-                                                     (set-z-index-boosted true)
                                                      ((@ gsap to)
                                                       (@ dg current 0 target)
                                                       (create
@@ -124,7 +124,8 @@
                                                        scale 1.1
                                                        rotation -3
                                                        box-shadow
-                                                       "0px 10px 20px rgba(0,0,0,0.3)"))))
+                                                       "0px 10px 20px rgba(0,0,0,0.3)")))
+                                                   (chain props (on-start-drag)))
 
                                                  on-drag
                                                  (lambda ()
@@ -140,6 +141,7 @@
 
                                                  on-release
                                                  (lambda ()
+                                                   (chain props (on-end-drag))
                                                    (set-z-index-boosted false)
                                                    (unless
                                                        (loop for d in (@ props droppables)
@@ -155,6 +157,7 @@
                                                      ((@ gsap to)
                                                       (@ dg current 0 target)
                                                       (create
+                                                       duration 0.3
                                                        top (* (@ props row) 50)
                                                        left (* (@ props col) 120))))
 
@@ -166,9 +169,10 @@
                                                      scale 1
                                                      box-shadow "0px 10px 20px rgba(0,0,0,0.1)")))))))
                            (lambda ()
-                             ;; (chain console (log "KILLING DRAGGABLE"))
+                             (dbg "KILLING DRAGGABLE")
                              (chain dg current 0 (kill))))
-                         (list (@ props droppables)))))
+                         ;;seriously?
+                         (list (chain -j-s-o-n (stringify (@ props droppables)))))))
   (props)
   (psx
    (:div ((id (@ props id))
@@ -179,10 +183,13 @@
                   "border" "solid"
                   "border-width" "1px"
                   "position" "absolute"
-                  "z-index" (if z-index-boosted 1000 (@ props row)))))
+                  "z-index" (if (or z-index-boosted (@ props being-dragged))
+                                (+ 1000 (@ props row))
+                                (@ props row)))))
          (:img ((src (@ props img)))))))
 
-(defcomponent -cards (((tableaus set-tableaus) (use-state make-tableaus)))
+(defcomponent -cards (((tableaus set-tableaus) (use-state make-tableaus))
+                      ((dragged-cards set-dragged-cards) (use-state (list))))
   ()
   (let ((droppables (loop for tableau in tableaus
                           collect (aref tableau (1- (@ tableau length))))))
@@ -195,26 +202,34 @@
            (let ((col 0)
                  (sorted-cards (list)))
              (loop for tableau in tableaus do
-               (loop for card in tableau
-                     for (suit num) = card
-                     for row = 1 then (1+ row) do
-                       (setf (aref sorted-cards (card->index card))
-                             (psx (:-card
-                                   ((col col)
-                                    (row row)
-                                    (droppables (without-idx droppables col))
-                                    (lower-cards (chain tableau (slice row) (map #'card->id)))
-                                    (id (card->id card))
-                                    (key (card->id card))
-                                    (img (+ "src/assets/1_" suit "_" num "@1x.png"))
-                                    (on-moved
-                                     (fwrap (col row)
-                                       (lambda (covered-card)
-                                         (destructuring-bind
-                                             (newcol newrow)
-                                             (find-card (id->card covered-card) tableaus)
-                                           (let ((new-tableaus (move-card tableaus col row newcol)))
-                                             (set-tableaus new-tableaus)))))))))))
+               (let ((row 1))
+                 (loop for card in tableau
+                       for (suit num) = card do
+                         (fwrap (col row)
+                           (setf (aref sorted-cards (card->index card))
+                                 (psx (:-card
+                                       ((col col)
+                                        (row row)
+                                        (droppables (without-idx droppables col))
+                                        (lower-cards (chain tableau (slice row) (map #'card->id)))
+                                        (id (card->id card))
+                                        (key (card->id card))
+                                        (on-start-drag (lambda ()
+                                                         (set-dragged-cards
+                                                          (dbg (chain tableau (slice row) (map #'card->id))))))
+                                        (on-end-drag (lambda () (set-dragged-cards (list))
+                                                       (dbg "clearning dragged cards list")))
+                                        (being-dragged (not (= (chain dragged-cards (index-of (card->id card))) -1)))
+                                        (img (+ "src/assets/1_" suit "_" num "@1x.png"))
+                                        (on-moved
+                                         (fwrap (col row)
+                                           (lambda (covered-card)
+                                             (destructuring-bind
+                                                 (newcol newrow)
+                                                 (find-card (id->card covered-card) tableaus)
+                                               (let ((new-tableaus (move-card tableaus col row newcol)))
+                                                 (set-tableaus new-tableaus)))))))))))
+                       (incf row)))
                    do (incf col))
              sorted-cards)))))
 
