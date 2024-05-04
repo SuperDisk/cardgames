@@ -1,3 +1,7 @@
+(defun dbg (&rest rest)
+  (apply (@ console log) rest)
+  (@ rest 0))
+
 (defun shuffle-array (array)
   (loop for i from (1- (@ array length)) above 0 do
     (let* ((j ((@ -Math floor) (* (chain -Math (random)) (1+ i))))
@@ -59,10 +63,12 @@
       (incf col)
       (setf row 0))))
 
-(defun move-card (tableau from to)
+(defun move-card (tableau from row to)
   (let* ((tableau (structured-clone tableau))
-         (val (chain (aref tableau from) (pop))))
-    (chain (aref tableau to) (push val))
+         (before (chain (aref tableau from) (slice 0 (1- row))) "before")
+         (after (chain (aref tableau from) (slice (1- row))) "after"))
+    (setf (aref tableau from) before)
+    (setf (aref tableau to) (append (aref tableau to) after))
     tableau))
 
 (defun without-idx (list idx)
@@ -76,7 +82,7 @@
                      ((z-index-boosted set-z-index-boosted) (use-state false))
                      (_ (use-effect
                          (lambda ()
-                           (chain console (log "sending" (@ card-ref current) "to" (@ props row) (@ props col)))
+                           #+nil (chain console (log "sending" (@ card-ref current) "to" (@ props row) (@ props col)))
                            ((@ gsap to)
                             (@ card-ref current)
                             (create
@@ -98,8 +104,6 @@
 
                                                  on-press
                                                  (lambda ()
-                                                   (set-z-index-boosted true)
-
                                                    (setf (@ start-x current) (@ this x))
                                                    (setf (@ start-y current) (@ this y))
                                                    (setf (@ companions current)
@@ -107,28 +111,32 @@
                                                                for el = (chain document (get-element-by-id id))
                                                                collect (create
                                                                         element el
-                                                                        x (chain gsap (get-property el "x"))
-                                                                        y (chain gsap (get-property el "y")))))
+                                                                        x (chain gsap (get-property el "left"))
+                                                                        y (chain gsap (get-property el "top")))))
 
-                                                   ((@ gsap to)
-                                                    (@ dg current 0 target)
-                                                    (create
-                                                     duration 0.3
-                                                     scale 1.1
-                                                     rotation -3
-                                                     box-shadow
-                                                     "0px 10px 20px rgba(0,0,0,0.3)")))
+                                                   (dbg (@ companions current))
+                                                   (unless (@ companions current length)
+                                                     (set-z-index-boosted true)
+                                                     ((@ gsap to)
+                                                      (@ dg current 0 target)
+                                                      (create
+                                                       duration 0.3
+                                                       scale 1.1
+                                                       rotation -3
+                                                       box-shadow
+                                                       "0px 10px 20px rgba(0,0,0,0.3)"))))
 
                                                  on-drag
                                                  (lambda ()
                                                    (let ((delta-x (- (@ this x) (@ start-x current)))
                                                          (delta-y (- (@ this y) (@ start-y current))))
                                                      (loop for companion in (@ companions current) do
+                                                       (dbg companion (@ this x) (@ this y) delta-x delta-y)
                                                        ((@ gsap set)
                                                         (@ companion element)
                                                         (create
-                                                         x (+ (@ companion x) delta-x)
-                                                         y (+ (@ companion y) delta-y))))))
+                                                         left (+ (@ companion x) delta-x)
+                                                         top (+ (@ companion y) delta-y))))))
 
                                                  on-release
                                                  (lambda ()
@@ -187,26 +195,26 @@
            (let ((col 0)
                  (sorted-cards (list)))
              (loop for tableau in tableaus do
-                   (loop for card in tableau
-                         for (suit num) = card
-                         for row = 1 then (1+ row) do
-                           (setf (aref sorted-cards (card->index card))
-                                 (psx (:-card
-                                       ((col col)
-                                        (row row)
-                                        (droppables (without-idx droppables col))
-                                        (lower-cards (chain tableau (slice row) (map #'card->id)))
-                                        (id (card->id card))
-                                        (key (card->id card))
-                                        (img (+ "src/assets/1_" suit "_" num "@1x.png"))
-                                        (on-moved
-                                         (fwrap col
-                                           (lambda (covered-card)
-                                             (destructuring-bind
-                                                 (newcol newrow)
-                                                 (find-card (id->card covered-card) tableaus)
-                                               (let ((new-tableaus (move-card tableaus col newcol)))
-                                                 (set-tableaus new-tableaus)))))))))))
+               (loop for card in tableau
+                     for (suit num) = card
+                     for row = 1 then (1+ row) do
+                       (setf (aref sorted-cards (card->index card))
+                             (psx (:-card
+                                   ((col col)
+                                    (row row)
+                                    (droppables (without-idx droppables col))
+                                    (lower-cards (chain tableau (slice row) (map #'card->id)))
+                                    (id (card->id card))
+                                    (key (card->id card))
+                                    (img (+ "src/assets/1_" suit "_" num "@1x.png"))
+                                    (on-moved
+                                     (fwrap (col row)
+                                       (lambda (covered-card)
+                                         (destructuring-bind
+                                             (newcol newrow)
+                                             (find-card (id->card covered-card) tableaus)
+                                           (let ((new-tableaus (move-card tableaus col row newcol)))
+                                             (set-tableaus new-tableaus)))))))))))
                    do (incf col))
              sorted-cards)))))
 
@@ -230,5 +238,8 @@
                         "mix-blend-mode" "overlay"
                         "background" "-webkit-radial-gradient(top,ellipse farthest-corner,hsla(0,0%,100%,.16) 100%,hsla(0,0%,100%,.08) 0),-webkit-radial-gradient(top,ellipse farthest-corner,hsla(0,0%,100%,.32) 0,hsla(0,0%,100%,0) 100%),-webkit-radial-gradient(top,ellipse farthest-corner,hsla(0,0%,100%,.32) 0,hsla(0,0%,100%,0) 64%)")))))))
 
-(let ((-app (psx (:-game ()))))
-  ((@ preact render) -app (@ document body)))
+
+((@ preact render) "" (@ document body) nil)
+(var root
+     (let ((-app (psx (:-game ()))))
+       ((@ preact render) -app (@ document body))))

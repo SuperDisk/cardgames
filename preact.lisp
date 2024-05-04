@@ -40,8 +40,8 @@
             use-imperative-methods
             use-debug-value)))
 
-(defmacro+ps fwrap (var &body body)
-  `(funcall (lambda (,var) ,@body) ,var))
+(defmacro+ps fwrap (vars &body body)
+  `(funcall (lambda ,vars ,@body) ,@vars))
 
 (defmacro+ps psx (&rest elements)
   `(list
