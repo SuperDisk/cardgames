@@ -95,84 +95,85 @@
                          (list (@ props row) (@ props col) (@ props being-dragged))))
                      (_ (use-effect
                          (lambda ()
-                           (setf (@ dg current)
-                                 (chain draggable
-                                        (create (+ "#" (@ props id))
-                                                (create
-                                                 type "left,top"
+                           (when (@ props can-drag)
+                             (setf (@ dg current)
+                                   (chain draggable
+                                          (create (+ "#" (@ props id))
+                                                  (create
+                                                   type "left,top"
 
-                                                 z-index-boost
-                                                 false
+                                                   z-index-boost
+                                                   false
 
-                                                 on-press
-                                                 (lambda ()
-                                                   (set-z-index-boosted true)
-                                                   (setf (@ start-x current) (@ this x))
-                                                   (setf (@ start-y current) (@ this y))
-                                                   (setf (@ companions current)
-                                                         (loop for id in (@ props lower-cards)
-                                                               for el = (chain document (get-element-by-id id))
-                                                               collect (create
-                                                                        element el
-                                                                        x (chain gsap (get-property el "left"))
-                                                                        y (chain gsap (get-property el "top")))))
-                                                   (unless (@ companions current length)
-                                                     ((@ gsap to)
-                                                      (@ dg current 0 target)
-                                                      (create
-                                                       duration 0.3
-                                                       scale 1.1
-                                                       rotation -3
-                                                       box-shadow
-                                                       "0px 10px 20px rgba(0,0,0,0.3)")))
-                                                   (chain props (on-start-drag)))
-
-                                                 on-drag
-                                                 (lambda ()
-                                                   (let ((delta-x (- (@ this x) (@ start-x current)))
-                                                         (delta-y (- (@ this y) (@ start-y current))))
-                                                     (loop for companion in (@ companions current) do
-                                                       (dbg companion (@ this x) (@ this y) delta-x delta-y)
-                                                       ((@ gsap set)
-                                                        (@ companion element)
+                                                   on-press
+                                                   (lambda ()
+                                                     (set-z-index-boosted true)
+                                                     (setf (@ start-x current) (@ this x))
+                                                     (setf (@ start-y current) (@ this y))
+                                                     (setf (@ companions current)
+                                                           (loop for id in (@ props lower-cards)
+                                                                 for el = (chain document (get-element-by-id id))
+                                                                 collect (create
+                                                                          element el
+                                                                          x (chain gsap (get-property el "left"))
+                                                                          y (chain gsap (get-property el "top")))))
+                                                     (unless (@ companions current length)
+                                                       ((@ gsap to)
+                                                        (@ dg current 0 target)
                                                         (create
-                                                         left (+ (@ companion x) delta-x)
-                                                         top (+ (@ companion y) delta-y))))))
+                                                         duration 0.3
+                                                         scale 1.1
+                                                         rotation -3
+                                                         box-shadow
+                                                         "0px 10px 20px rgba(0,0,0,0.3)")))
+                                                     (chain props (on-start-drag)))
 
-                                                 on-release
-                                                 (lambda ()
-                                                   (chain props (on-end-drag))
-                                                   (set-z-index-boosted false)
-                                                   (unless
-                                                       (loop for d in (@ props droppables)
-                                                             for idd = (card->id d)
-                                                             do
-                                                                (when (chain this (hit-test (+ "#" idd) "25%"))
-                                                                  ((@ props on-moved) idd)
-                                                                  (return true))
-                                                             finally
-                                                                (chain console (log "nope"))
-                                                                (return false))
+                                                   on-drag
+                                                   (lambda ()
+                                                     (let ((delta-x (- (@ this x) (@ start-x current)))
+                                                           (delta-y (- (@ this y) (@ start-y current))))
+                                                       (loop for companion in (@ companions current) do
+                                                         ((@ gsap set)
+                                                          (@ companion element)
+                                                          (create
+                                                           left (+ (@ companion x) delta-x)
+                                                           top (+ (@ companion y) delta-y))))))
+
+                                                   on-release
+                                                   (lambda ()
+                                                     (chain props (on-end-drag))
+                                                     (set-z-index-boosted false)
+                                                     (unless
+                                                         (loop for d in (@ props droppables)
+                                                               for idd = (card->id d)
+                                                               do
+                                                                  (when (chain this (hit-test (+ "#" idd) "25%"))
+                                                                    ((@ props on-moved) idd)
+                                                                    (return true))
+                                                               finally
+                                                                  (return false))
+
+                                                       ((@ gsap to)
+                                                        (@ dg current 0 target)
+                                                        (create
+                                                         duration 0.3
+                                                         top (* (@ props row) 50)
+                                                         left (* (@ props col) 120))))
 
                                                      ((@ gsap to)
                                                       (@ dg current 0 target)
                                                       (create
                                                        duration 0.3
-                                                       top (* (@ props row) 50)
-                                                       left (* (@ props col) 120))))
-
-                                                   ((@ gsap to)
-                                                    (@ dg current 0 target)
-                                                    (create
-                                                     duration 0.3
-                                                     rotation 0
-                                                     scale 1
-                                                     box-shadow "0px 10px 20px rgba(0,0,0,0.1)")))))))
+                                                       rotation 0
+                                                       scale 1
+                                                       box-shadow "0px 10px 20px rgba(0,0,0,0.1)"))))))))
                            (lambda ()
                              (dbg "KILLING DRAGGABLE")
-                             (chain dg current 0 (kill))))
+                             (when (@ dg current)
+                               (chain dg current 0 (kill)))))
                          ;;seriously?
-                         (list (chain -j-s-o-n (stringify (@ props droppables)))))))
+                         (list (chain -j-s-o-n (stringify (@ props droppables)))
+                               (@ props can-drag)))))
   (props)
   (psx
    (:div ((id (@ props id))
@@ -214,11 +215,11 @@
                                         (lower-cards (chain tableau (slice row) (map #'card->id)))
                                         (id (card->id card))
                                         (key (card->id card))
+                                        (can-drag true)
                                         (on-start-drag (lambda ()
                                                          (set-dragged-cards
-                                                          (dbg (chain tableau (slice row) (map #'card->id))))))
-                                        (on-end-drag (lambda () (set-dragged-cards (list))
-                                                       (dbg "clearning dragged cards list")))
+                                                          (chain tableau (slice row) (map #'card->id)))))
+                                        (on-end-drag (lambda () (set-dragged-cards (list))))
                                         (being-dragged (not (= (chain dragged-cards (index-of (card->id card))) -1)))
                                         (img (+ "src/assets/1_" suit "_" num "@1x.png"))
                                         (on-moved
