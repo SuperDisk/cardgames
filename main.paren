@@ -147,12 +147,14 @@
 
                                                    on-press
                                                    (lambda ()
+                                                     (chain gsap (kill-tweens-of (@ card-ref current)))
                                                      (set-z-index-boosted true)
                                                      (setf (@ start-x current) (@ this x))
                                                      (setf (@ start-y current) (@ this y))
                                                      (setf (@ companions current)
                                                            (loop for id in (@ props lower-cards)
                                                                  for el = (chain document (get-element-by-id id))
+                                                                 do (chain gsap (kill-tweens-of el))
                                                                  collect (create
                                                                           element el
                                                                           x (chain gsap (get-property el "left"))
@@ -262,9 +264,7 @@
                                                    (clear-freecell
                                                     (set-freecell freecells num card)
                                                     idx)))))
-                                             ((and (chain dropped-on (includes "foundation"))
-                                                   (= 1 (@ dragged-cards length))
-                                                   ))
+                                             ((chain dropped-on (includes "foundation")))
                                              (t
                                               (destructuring-bind
                                                   (newcol newrow)
@@ -301,11 +301,10 @@
                                              ((and (chain dropped-on (includes "freecell"))
                                                    (= 1 (@ dragged-cards length)))
                                               (let ((num (freecell->num dropped-on)))
-                                                (set-tableaus (delete-from-column tableaus col))
-                                                (set-freecells (set-freecell freecells num card))))
-                                             ((and (chain dropped-on (includes "foundation"))
-                                                   (= 1 (@ dragged-cards length))
-                                                   ))
+                                                (when (null (aref freecells num))
+                                                  (set-tableaus (delete-from-column tableaus col))
+                                                  (set-freecells (set-freecell freecells num card)))))
+                                             ((chain dropped-on (includes "foundation")))
                                              (t
                                               (destructuring-bind
                                                   (newcol newrow)
