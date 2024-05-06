@@ -199,7 +199,7 @@
                     "align-items" "flex-start"
                     "padding" "20px")))
            (let ((sorted-cards (list)))
-             (let ((col 0) (row 0))
+             (let ((col 0) (row 1))
                (loop for tableau in tableaus do
                  (loop for card in tableau
                        for (suit num) = card do
@@ -237,7 +237,7 @@
                                                 (let ((new-tableaus (move-card tableaus col row newcol)))
                                                   (set-tableaus new-tableaus))))))))))))
                        do (incf row))
-                     do (incf col) (setf row 0))
+                     do (incf col) (setf row 1))
                sorted-cards))))))
 
 (defcomponent -free-cell ()
