@@ -2,6 +2,9 @@
   (apply (@ console log) rest)
   (@ rest 0))
 
+(defun last (list)
+  (aref list (1- (@ list length))))
+
 (defun shuffle-array (array)
   (loop for i from (1- (@ array length)) above 0 do
     (let* ((j ((@ -Math floor) (* (chain -Math (random)) (1+ i))))
@@ -143,11 +146,10 @@
                                                    (lambda ()
                                                      (chain props (on-end-drag))
                                                      (set-z-index-boosted false)
-                                                     (loop for d in (@ props droppables)
-                                                           for idd = (card->id d)
+                                                     (loop for droppable in (@ props droppables)
                                                            do
-                                                              (when (chain this (hit-test (+ "#" idd) "25%"))
-                                                                ((@ props on-moved) idd)
+                                                              (when (chain this (hit-test (+ "#" droppable) "25%"))
+                                                                ((@ props on-moved) droppable)
                                                                 (return)))
 
                                                      ((@ gsap to)
@@ -183,7 +185,7 @@
                       ((dragged-cards set-dragged-cards) (use-state (list))))
   ()
   (let ((droppables (loop for tableau in tableaus
-                          collect (aref tableau (1- (@ tableau length))))))
+                          collect (card->id (last tableau)))))
     (psx
      (:div ((style (create
                     "display" "flex"
