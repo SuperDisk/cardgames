@@ -52,6 +52,9 @@
     (list (aref parts 1)
           (parse-int (aref parts 2)))))
 
+(defun freecell->num (id)
+  (aref (chain id (split "_")) 1))
+
 (defun card= (card1 card2)
   (and (equal (aref card1 0) (aref card2 0))
        (equal (aref card1 1) (aref card2 1))))
@@ -182,6 +185,8 @@
          (:img ((src (@ props img)))))))
 
 (defcomponent -cards (((tableaus set-tableaus) (use-state make-tableaus))
+                      ((freecells set-freecells) (use-state '(nil nil nil nil)))
+                      ((foundations set-foundations) (use-state '(nil nil nil nil)))
                       ((dragged-cards set-dragged-cards) (use-state (list))))
   ()
   (let ((droppables (loop for tableau in tableaus
@@ -193,10 +198,9 @@
                     "justify-content" "flex-start"
                     "align-items" "flex-start"
                     "padding" "20px")))
-           (let ((col 0)
-                 (sorted-cards (list)))
-             (loop for tableau in tableaus do
-               (let ((row 1))
+           (let ((sorted-cards (list)))
+             (let ((col 0) (row 0))
+               (loop for tableau in tableaus do
                  (loop for card in tableau
                        for (suit num) = card do
                          (fwrap (col row)
@@ -204,7 +208,11 @@
                                  (psx (:-card
                                        ((col col)
                                         (row row)
-                                        (droppables (without-idx droppables col))
+                                        (droppables (append (without-idx droppables col)
+                                                            (loop for i from 0 below 4
+                                                                  collect (+ "foundation_" i))
+                                                            (loop for i from 0 below 4
+                                                                  collect (+ "freecell_" i))))
                                         (lower-cards (chain tableau (slice row) (map #'card->id)))
                                         (id (card->id card))
                                         (key (card->id card))
@@ -216,19 +224,27 @@
                                         (being-dragged (not (= (chain dragged-cards (index-of (card->id card))) -1)))
                                         (img (+ "src/assets/1_" suit "_" num "@1x.png"))
                                         (on-moved
-                                         (lambda (covered-card)
-                                           (destructuring-bind
-                                               (newcol newrow)
-                                               (find-card (id->card covered-card) tableaus)
-                                             (let ((new-tableaus (move-card tableaus col row newcol)))
-                                               (set-tableaus new-tableaus))))))))))
-                       do (incf row)))
-                   do (incf col))
-             sorted-cards)))))
+                                         (lambda (dropped-on)
+                                           (cond
+                                             ((chain dropped-on (includes "freecell"))
+                                              )
+                                             ((chain dropped-on (includes "foundation"))
+                                              )
+                                             (t
+                                              (destructuring-bind
+                                                  (newcol newrow)
+                                                  (find-card (id->card dropped-on) tableaus)
+                                                (let ((new-tableaus (move-card tableaus col row newcol)))
+                                                  (set-tableaus new-tableaus))))))))))))
+                       do (incf row))
+                     do (incf col) (setf row 0))
+               sorted-cards))))))
 
-(defcomponent -free-cell () ()
+(defcomponent -free-cell ()
+  (props)
   (psx
-   (:div ((style (create
+   (:div ((id (@ props id))
+          (style (create
                   "width" 108
                   "height" 154
                   "background-color" "white"
@@ -236,9 +252,11 @@
                   "border-radius" "7px"
                   "margin-right" "12px"))))))
 
-(defcomponent -foundation () ()
+(defcomponent -foundation ()
+  (props)
   (psx
-   (:div ((style (create
+   (:div ((id (@ props id))
+          (style (create
                   "width" 108
                   "height" 154
                   "background-color" "white"
@@ -253,12 +271,12 @@
             "display" "flex")))
          (loop for i from 0 below 4
                collect
-               (psx (:-free-cell ())))
+               (psx (:-free-cell ((id (+ "freecell_" i))))))
          (psx (:div ((style (create "width" 30
                                     "margin-right" "12px")))))
          (loop for i from 0 below 4
                collect
-               (psx (:-foundation ()))))))
+               (psx (:-foundation ((id (+ "foundation_" i)))))))))
 
 (defcomponent -game () ()
   (psx
