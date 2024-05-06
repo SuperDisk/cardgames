@@ -143,22 +143,12 @@
                                                    (lambda ()
                                                      (chain props (on-end-drag))
                                                      (set-z-index-boosted false)
-                                                     (unless
-                                                         (loop for d in (@ props droppables)
-                                                               for idd = (card->id d)
-                                                               do
-                                                                  (when (chain this (hit-test (+ "#" idd) "25%"))
-                                                                    ((@ props on-moved) idd)
-                                                                    (return true))
-                                                               finally
-                                                                  (return false))
-
-                                                       ((@ gsap to)
-                                                        (@ dg current 0 target)
-                                                        (create
-                                                         duration 0.3
-                                                         top (* (@ props row) 50)
-                                                         left (* (@ props col) 120))))
+                                                     (loop for d in (@ props droppables)
+                                                           for idd = (card->id d)
+                                                           do
+                                                              (when (chain this (hit-test (+ "#" idd) "25%"))
+                                                                ((@ props on-moved) idd)
+                                                                (return)))
 
                                                      ((@ gsap to)
                                                       (@ dg current 0 target)
@@ -218,19 +208,18 @@
                                         (can-drag true)
                                         (on-start-drag (lambda ()
                                                          (set-dragged-cards
-                                                          (chain tableau (slice row) (map #'card->id)))))
+                                                          (chain tableau (slice (1- row)) (map #'card->id)))))
                                         (on-end-drag (lambda () (set-dragged-cards (list))))
                                         (being-dragged (not (= (chain dragged-cards (index-of (card->id card))) -1)))
                                         (img (+ "src/assets/1_" suit "_" num "@1x.png"))
                                         (on-moved
-                                         (fwrap (col row)
-                                           (lambda (covered-card)
-                                             (destructuring-bind
-                                                 (newcol newrow)
-                                                 (find-card (id->card covered-card) tableaus)
-                                               (let ((new-tableaus (move-card tableaus col row newcol)))
-                                                 (set-tableaus new-tableaus)))))))))))
-                       (incf row)))
+                                         (lambda (covered-card)
+                                           (destructuring-bind
+                                               (newcol newrow)
+                                               (find-card (id->card covered-card) tableaus)
+                                             (let ((new-tableaus (move-card tableaus col row newcol)))
+                                               (set-tableaus new-tableaus))))))))))
+                       do (incf row)))
                    do (incf col))
              sorted-cards)))))
 
