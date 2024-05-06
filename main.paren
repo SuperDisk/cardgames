@@ -188,6 +188,7 @@
                           collect (card->id (last tableau)))))
     (psx
      (:div ((style (create
+                    "position" "absolute"
                     "display" "flex"
                     "justify-content" "flex-start"
                     "align-items" "flex-start"
@@ -225,9 +226,48 @@
                    do (incf col))
              sorted-cards)))))
 
+(defcomponent -free-cell () ()
+  (psx
+   (:div ((style (create
+                  "width" 108
+                  "height" 154
+                  "background-color" "white"
+                  "opacity" "0.25"
+                  "border-radius" "7px"
+                  "margin-right" "12px"))))))
+
+(defcomponent -foundation () ()
+  (psx
+   (:div ((style (create
+                  "width" 108
+                  "height" 154
+                  "background-color" "white"
+                  "opacity" "0.25"
+                  "border-radius" "7px"
+                  "margin-right" "12px"))))))
+
+(defcomponent -free-cells () ()
+  (psx
+   (:div ((style
+           (create
+            "display" "flex")))
+         (loop for i from 0 below 4
+               collect
+               (psx (:-free-cell ())))
+         (psx (:div ((style (create "width" 30
+                                    "margin-right" "12px")))))
+         (loop for i from 0 below 4
+               collect
+               (psx (:-foundation ()))))))
+
 (defcomponent -game () ()
   (psx
-   (:div () (:-cards ()))
+   (:-free-cells ())
+   (:-cards ())
+   (:-background-overlay ())))
+
+(defcomponent -background-overlay () ()
+  (psx
    (:div ((style (create
                   position "absolute"
                   left 0
@@ -244,7 +284,6 @@
                         "left" 0
                         "mix-blend-mode" "overlay"
                         "background" "-webkit-radial-gradient(top,ellipse farthest-corner,hsla(0,0%,100%,.16) 100%,hsla(0,0%,100%,.08) 0),-webkit-radial-gradient(top,ellipse farthest-corner,hsla(0,0%,100%,.32) 0,hsla(0,0%,100%,0) 100%),-webkit-radial-gradient(top,ellipse farthest-corner,hsla(0,0%,100%,.32) 0,hsla(0,0%,100%,0) 64%)")))))))
-
 
 ((@ preact render) "" (@ document body) nil)
 (var root
