@@ -12,6 +12,7 @@
 		"@gsap/react": "^2.1.1",
 		"@prefresh/core": "^1.5.2",
 		"@prefresh/utils": "^1.2.0",
+		"@uidotdev/usehooks": "^2.4.1",
 		"gsap": "^3.12.5",
 		"preact": "^10.20.0"
 	},

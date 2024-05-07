@@ -4,6 +4,7 @@ import * as dndKit from '@dnd-kit/core'
 import { gsap } from 'gsap';
 import { Draggable } from 'gsap/Draggable';
 import { useGSAP } from "@gsap/react";
+import { useHistoryState } from "@uidotdev/usehooks";
 
 gsap.registerPlugin(Draggable);
 
@@ -31,3 +32,4 @@ self.dndKit = dndKit;
 self.gsap = gsap;
 self.useGSAP = useGSAP;
 self.draggable = Draggable;
+self.useHistoryState = useHistoryState;
