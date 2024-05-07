@@ -142,9 +142,10 @@
            (when (not (@ props being-dragged))
              (cond
                ((not (null (@ props freecell)))
-                (with-slots (left top) (chain document
-                                              (get-element-by-id (+ "freecell_" (@ props freecell)))
-                                              (get-bounding-client-rect))
+                (with-slots (left top)
+                    (chain document
+                           (get-element-by-id (+ "freecell_" (@ props freecell)))
+                           (get-bounding-client-rect))
                   ((@ gsap to)
                    (@ card-ref current)
                    (create
@@ -152,15 +153,17 @@
                     top top
                     left left))))
                ((not (null (@ props foundation)))
-                (with-slots (left top) (chain document
-                                              (get-element-by-id (+ "foundation_" (@ props foundation)))
-                                              (get-bounding-client-rect))
+                (with-slots (left top)
+                    (chain document
+                           (get-element-by-id (+ "foundation_" (@ props foundation)))
+                           (get-bounding-client-rect))
                   ((@ gsap to)
                    (@ card-ref current)
                    (create
                     duration 0.3
                     top top
-                    left left))))
+                    left left
+                    box-shadow "none"))))
               (t
                ((@ gsap to)
                 (@ card-ref current)
@@ -256,6 +259,7 @@
                                                                        (filter (lambda (x)
                                                                                  (and
                                                                                   (not (chain x (includes "freecell")))
+                                                                                  (not (chain x (includes "foundation")))
                                                                                   (not (chain x (includes "dropbase"))))))))))
                                   "rotate(10deg)")
                   "z-index" (if (or z-index-boosted (@ props being-dragged))
@@ -288,7 +292,9 @@
                                                         collect (+ "freecell_" i))
                                                   (loop for i from 0 below 8
                                                         when (emptyp (aref tableaus i))
-                                                          collect (+ "dropbase_" i))))
+                                                          collect (+ "dropbase_" i))
+                                                  (loop for i from 0 below 4
+                                                        collect (+ "foundation_" i))))
                               (id (card->id card))
                               (key (card->id card))
                               (can-drag true)
@@ -307,7 +313,17 @@
                                            (clear-freecell
                                             (set-freecell freecells num card)
                                             idx)))))
-                                     ((chain dropped-on (includes "foundation")))
+                                     ((chain dropped-on (includes "foundation"))
+                                      (let* ((num (freecell->num dropped-on))
+                                             (foundation (aref foundations num))
+                                             (dropped-on-card (last foundation)))
+                                        (dbg "attempted to drop" card "on" dropped-on-card)
+                                        (when (or (and (emptyp foundation) (= (aref card 1) 1))
+                                                  (and (not (emptyp foundation))
+                                                       (next-in-suit card dropped-on-card)))
+                                          (set-freecells (clear-freecell freecells idx))
+                                          (dbg "inserting" foundations num card)
+                                          (set-foundations (insert-card foundations num card)))))
                                      ((chain dropped-on (includes "dropbase"))
                                       (let ((num (freecell->num dropped-on)))
                                         (dbg "clearing freecell" idx)
