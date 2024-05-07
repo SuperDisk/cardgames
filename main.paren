@@ -71,8 +71,8 @@
 
 (defun move-card (tableau from row to)
   (let* ((tableau (structured-clone tableau))
-         (before (chain (aref tableau from) (slice 0 (1- row))) "before")
-         (after (chain (aref tableau from) (slice (1- row))) "after"))
+         (before (chain (aref tableau from) (slice 0 (1- row))))
+         (after (chain (aref tableau from) (slice (1- row)))))
     (setf (aref tableau from) before)
     (setf (aref tableau to) (append (aref tableau to) after))
     tableau))
@@ -234,8 +234,12 @@
                   "border" "solid"
                   "border-width" "1px"
                   "position" "absolute"
-                  "transform" (if (and (@ props can-drag)
-                                       (> (@ (@ props droppables) length) 4))
+                  "transform" (if (and (@ props can-drag) (not (emptyp
+                                                                (chain (@ props droppables)
+                                                                       (filter (lambda (x)
+                                                                                 (and
+                                                                                  (not (chain x (includes "freecell")))
+                                                                                  (not (chain x (includes "dropbase"))))))))))
                                   "rotate(10deg)")
                   "z-index" (if (or z-index-boosted (@ props being-dragged))
                                 (+ 1000 (or (@ props row) 0))
@@ -257,10 +261,14 @@
                        (psx (:-card
                              ((freecell idx)
                               (droppables (append (loop for tableau in tableaus
-                                                        when (suitable-droppable card (last tableau))
+                                                        when (and (not (emptyp tableau))
+                                                                  (suitable-droppable card (last tableau)))
                                                           collect (card->id (last tableau)))
                                                   (loop for i from 0 below 4
-                                                        collect (+ "freecell_" i))))
+                                                        collect (+ "freecell_" i))
+                                                  (loop for i from 0 below 8
+                                                        when (emptyp (aref tableaus i))
+                                                          collect (+ "dropbase_" i))))
                               (id (card->id card))
                               (key (card->id card))
                               (can-drag true)
@@ -280,6 +288,11 @@
                                             (set-freecell freecells num card)
                                             idx)))))
                                      ((chain dropped-on (includes "foundation")))
+                                     ((chain dropped-on (includes "dropbase"))
+                                      (let ((num (freecell->num dropped-on)))
+                                        (dbg "clearing freecell" idx)
+                                        (set-freecells (clear-freecell freecells idx))
+                                        (set-tableaus (insert-card tableaus num card))))
                                      (t
                                       (destructuring-bind
                                           (newcol newrow)
@@ -299,10 +312,15 @@
                                  ((col col)
                                   (row row)
                                   (droppables (append (loop for tableau in tableaus
-                                                            when (suitable-droppable card (last tableau))
+                                                            when (and (not (emptyp tableau))
+                                                                      (suitable-droppable card (last tableau)))
                                                               collect (card->id (last tableau)))
                                                       (loop for i from 0 below 4
-                                                            collect (+ "freecell_" i))))
+                                                            when (not (aref freecells i))
+                                                            collect (+ "freecell_" i))
+                                                      (loop for i from 0 below 8
+                                                            when (emptyp (aref tableaus i))
+                                                            collect (+ "dropbase_" i))))
                                   (lower-cards (chain lower-cards (map #'card->id)))
                                   (id (card->id card))
                                   (key (card->id card))
@@ -323,6 +341,9 @@
                                             (set-tableaus (delete-from-column tableaus col))
                                             (set-freecells (set-freecell freecells num card)))))
                                        ((chain dropped-on (includes "foundation")))
+                                       ((chain dropped-on (includes "dropbase"))
+                                        (let ((num (freecell->num dropped-on)))
+                                          (set-tableaus (move-card tableaus col row num))))
                                        (t
                                         (destructuring-bind
                                             (newcol newrow)
@@ -368,7 +389,7 @@
                   "position" "absolute"
                   "width" 108
                   "height" 154
-                  "top" (* 1 50)
+                  "top" (+ 130 (* 1 50))
                   "left" (* (@ props col) 120)
                   "background-color" "white"
                   "opacity" "0.25"
@@ -388,15 +409,19 @@
                collect
                (psx (:-foundation ((id (+ "foundation_" i)))))))))
 
+(defcomponent -drop-bases () ()
+  (loop for i from 0 below 8
+        collect
+        (psx
+         (:-drop-base ((id (+ "dropbase_" i))
+                       (col i))))))
+
 (defcomponent -game () ()
   (psx
    (:-free-cells ())
    (:-cards ())
    (:-background-overlay ())
-   #+nil (loop for i from 0 below 8
-         collect
-         (psx
-          (:-drop-base ((col i) (row 1)))))))
+   (:-drop-bases ())))
 
 (defcomponent -background-overlay () ()
   (psx
