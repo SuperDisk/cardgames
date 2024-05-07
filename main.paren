@@ -2,36 +2,36 @@
   (apply (@ console log) rest)
   (@ rest 0))
 
+(defun make-rng (seed)
+  #'(lambda ()
+      (ash (setf seed (mod (+ (* 214013 seed) 2531011) (expt 2 31))) -16)))
+
+(defmacro swap (p1 p2)
+  `(setf (list ,p1 ,p2) (list ,p2 ,p1)))
+
+(defun new-deck (seed)
+  (let ((hand (list))
+        (rng (make-rng seed)))
+    (dolist (d (loop for i from 1 to 13 collect i))
+      (dolist (s '(clover diamond heart spade))
+        (chain hand (push (list s d)))))
+    (dotimes (i 52)
+      (let ((idx1 (- 51 i))
+            (idx2 (mod (funcall rng) (- 52 i)))))
+      (swap (aref hand idx1)
+            (aref hand idx2)))
+    (chain hand (reverse))))
+
 (defun last (list)
   (aref list (1- (@ list length))))
 
-(defun shuffle-array (array)
-  (loop for i from (1- (@ array length)) above 0 do
-    (let* ((j ((@ -Math floor) (* (chain -Math (random)) (1+ i))))
-           (temp (aref array i)))
-      (setf (aref array i) (aref array j))
-      (setf (aref array j) temp)))
-  array)
-
-(defun new-deck ()
-  (shuffle-array
-   (loop for suit in '(spade heart clover diamond)
-         append
-         (loop for num from 1 to 13
-               collect (list suit num)))))
-
-(defun subseq (list start &optional end)
-  (let ((end (or end (@ list length))))
-    (chain list (slice start end))))
-
-(defun make-tableaus ()
-  (let* ((deck (new-deck)))
-    (flet ((take (n)
-             (prog1
-                 (subseq deck 0 n)
-               (setf deck (subseq deck n)))))
-      (list (take 7) (take 7) (take 7) (take 7)
-            (take 6) (take 6) (take 6) (take 6)))))
+(defun make-tableaus (seed)
+  (let ((deck (new-deck seed))
+        (tableaus (loop for i from 0 below 8 collect (list))))
+    (loop for i from 0 to 51
+          for card in deck do
+          (chain (aref tableaus (mod i 8)) (push card)))
+    tableaus))
 
 (defun card->index (card)
   (destructuring-bind (suit num) card
@@ -246,7 +246,9 @@
                                 (or (@ props row) 0)))))
          (:img ((src (@ props img)))))))
 
-(defcomponent -cards (((tableaus set-tableaus) (use-state make-tableaus))
+(defcomponent -cards (((tableaus set-tableaus) (use-state
+                                                (lambda ()
+                                                  (make-tableaus 11))))
                       ((freecells set-freecells) (use-state '(nil nil nil nil)))
                       ((foundations set-foundations) (use-state '(nil nil nil nil)))
                       ((dragged-cards set-dragged-cards) (use-state (list))))
@@ -317,10 +319,10 @@
                                                               collect (card->id (last tableau)))
                                                       (loop for i from 0 below 4
                                                             when (not (aref freecells i))
-                                                            collect (+ "freecell_" i))
+                                                              collect (+ "freecell_" i))
                                                       (loop for i from 0 below 8
                                                             when (emptyp (aref tableaus i))
-                                                            collect (+ "dropbase_" i))))
+                                                              collect (+ "dropbase_" i))))
                                   (lower-cards (chain lower-cards (map #'card->id)))
                                   (id (card->id card))
                                   (key (card->id card))
