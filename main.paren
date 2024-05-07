@@ -30,7 +30,7 @@
         (tableaus (loop for i from 0 below 8 collect (list))))
     (loop for i from 0 to 51
           for card in deck do
-          (chain (aref tableaus (mod i 8)) (push card)))
+            (chain (aref tableaus (mod i 8)) (push card)))
     tableaus))
 
 (defun card->index (card)
@@ -116,113 +116,130 @@
                        (and (not (= (suit-color suit1) (suit-color suit2)))
                             (= (1- num2) num1))))
 
+(defun next-in-suit (card next)
+  (destructuring-binds (((suit1 num1) card)
+                        ((suit2 num2) next))
+                       (and (= suit1 suit2) (= (1- num1) num2))))
+
 (defun is-tableau (cards)
   (loop for (c1 c2) on cards
         when (and c2 (not (suitable-droppable c2 c1))) do (return false)
           finally (return true)))
 
-(defcomponent -card ((dg (use-ref))
-                     (card-ref (use-ref))
-                     (companions (use-ref))
-                     (start-x (use-ref))
-                     (start-y (use-ref))
-                     (on-moved-callback (use-ref))
-                     ((z-index-boosted set-z-index-boosted) (use-state
-                                                             (lambda ()
-                                                               (dbg "REMOUNTING CARD")
-                                                               false)))
-                     (_ (use-effect
-                         (lambda ()
-                           (when (not (@ props being-dragged))
-                             (if (not (null (@ props freecell)))
-                                 (with-slots (left top) (chain document
-                                                               (get-element-by-id (+ "freecell_" (@ props freecell)))
-                                                               (get-bounding-client-rect))
-                                   ((@ gsap to)
-                                    (@ card-ref current)
-                                    (create
-                                     duration 0.3
-                                     top top
-                                     left left)))
-                                 ((@ gsap to)
-                                  (@ card-ref current)
+(defcomponent -card
+    ((dg (use-ref))
+     (card-ref (use-ref))
+     (companions (use-ref))
+     (start-x (use-ref))
+     (start-y (use-ref))
+     (on-moved-callback (use-ref))
+     ((z-index-boosted set-z-index-boosted) (use-state
+                                             (lambda ()
+                                               (dbg "REMOUNTING CARD")
+                                               false)))
+     (_ (use-effect
+         (lambda ()
+           (when (not (@ props being-dragged))
+             (cond
+               ((not (null (@ props freecell)))
+                (with-slots (left top) (chain document
+                                              (get-element-by-id (+ "freecell_" (@ props freecell)))
+                                              (get-bounding-client-rect))
+                  ((@ gsap to)
+                   (@ card-ref current)
+                   (create
+                    duration 0.3
+                    top top
+                    left left))))
+               ((not (null (@ props foundation)))
+                (with-slots (left top) (chain document
+                                              (get-element-by-id (+ "foundation_" (@ props foundation)))
+                                              (get-bounding-client-rect))
+                  ((@ gsap to)
+                   (@ card-ref current)
+                   (create
+                    duration 0.3
+                    top top
+                    left left))))
+              (t
+               ((@ gsap to)
+                (@ card-ref current)
+                (create
+                 duration 0.3
+                 top (+ 130 (* (@ props row) 50))
+                 left (* (@ props col) 120)))))))
+         (list (@ props row) (@ props col) (@ props being-dragged) (@ props freecell) (@ props foundation))))
+     (_ (use-effect
+         (lambda ()
+           (when (@ props can-drag)
+             (setf (@ dg current)
+                   (chain draggable
+                          (create (+ "#" (@ props id))
                                   (create
-                                   duration 0.3
-                                   top (+ 130 (* (@ props row) 50))
-                                   left (* (@ props col) 120))))))
-                         (list (@ props row) (@ props col) (@ props being-dragged))))
-                     (_ (use-effect
-                         (lambda ()
-                           (when (@ props can-drag)
-                             (setf (@ dg current)
-                                   (chain draggable
-                                          (create (+ "#" (@ props id))
-                                                  (create
-                                                   type "left,top"
+                                   type "left,top"
 
-                                                   z-index-boost
-                                                   false
+                                   z-index-boost
+                                   false
 
-                                                   on-press
-                                                   (lambda ()
-                                                     (chain gsap (kill-tweens-of (@ card-ref current)))
-                                                     (set-z-index-boosted true)
-                                                     (setf (@ start-x current) (@ this x))
-                                                     (setf (@ start-y current) (@ this y))
-                                                     (setf (@ companions current)
-                                                           (loop for id in (@ props lower-cards)
-                                                                 for el = (chain document (get-element-by-id id))
-                                                                 do (chain gsap (kill-tweens-of el))
-                                                                 collect (create
-                                                                          element el
-                                                                          x (chain gsap (get-property el "left"))
-                                                                          y (chain gsap (get-property el "top")))))
-                                                     (unless (@ companions current length)
-                                                       ((@ gsap to)
-                                                        (@ dg current 0 target)
-                                                        (create
-                                                         duration 0.3
-                                                         scale 1.1
-                                                         rotation -3
-                                                         box-shadow
-                                                         "0px 10px 20px rgba(0,0,0,0.3)")))
-                                                     (chain props (on-start-drag)))
+                                   on-press
+                                   (lambda ()
+                                     (chain gsap (kill-tweens-of (@ card-ref current)))
+                                     (set-z-index-boosted true)
+                                     (setf (@ start-x current) (@ this x))
+                                     (setf (@ start-y current) (@ this y))
+                                     (setf (@ companions current)
+                                           (loop for id in (@ props lower-cards)
+                                                 for el = (chain document (get-element-by-id id))
+                                                 do (chain gsap (kill-tweens-of el))
+                                                 collect (create
+                                                          element el
+                                                          x (chain gsap (get-property el "left"))
+                                                          y (chain gsap (get-property el "top")))))
+                                     (unless (@ companions current length)
+                                       ((@ gsap to)
+                                        (@ dg current 0 target)
+                                        (create
+                                         duration 0.3
+                                         scale 1.1
+                                         rotation -3
+                                         box-shadow
+                                         "0px 10px 20px rgba(0,0,0,0.3)")))
+                                     (chain props (on-start-drag)))
 
-                                                   on-drag
-                                                   (lambda ()
-                                                     (let ((delta-x (- (@ this x) (@ start-x current)))
-                                                           (delta-y (- (@ this y) (@ start-y current))))
-                                                       (loop for companion in (@ companions current) do
-                                                         ((@ gsap set)
-                                                          (@ companion element)
-                                                          (create
-                                                           left (+ (@ companion x) delta-x)
-                                                           top (+ (@ companion y) delta-y))))))
+                                   on-drag
+                                   (lambda ()
+                                     (let ((delta-x (- (@ this x) (@ start-x current)))
+                                           (delta-y (- (@ this y) (@ start-y current))))
+                                       (loop for companion in (@ companions current) do
+                                         ((@ gsap set)
+                                          (@ companion element)
+                                          (create
+                                           left (+ (@ companion x) delta-x)
+                                           top (+ (@ companion y) delta-y))))))
 
-                                                   on-release
-                                                   (lambda ()
-                                                     (chain props (on-end-drag))
-                                                     (set-z-index-boosted false)
-                                                     (loop for droppable in (@ props droppables)
-                                                           do
-                                                              (when (chain this (hit-test (+ "#" droppable) "25%"))
-                                                                ((@ on-moved-callback current) droppable)
-                                                                (return)))
-                                                     ((@ gsap to)
-                                                      (@ dg current 0 target)
-                                                      (create
-                                                       duration 0.3
-                                                       rotation 0
-                                                       scale 1
-                                                       box-shadow "0px 10px 20px rgba(0,0,0,0.1)"))))))))
-                           (lambda ()
-                             (dbg "KILLING DRAGGABLE")
-                             (when (@ dg current)
-                               (chain dg current 0 (kill)))))
-                         ;;seriously?
-                         (list (chain -j-s-o-n (stringify (@ props droppables)))
-                               (chain -j-s-o-n (stringify (@ props lower-cards)))
-                               (@ props can-drag)))))
+                                   on-release
+                                   (lambda ()
+                                     (chain props (on-end-drag))
+                                     (set-z-index-boosted false)
+                                     (loop for droppable in (@ props droppables) do
+                                       (when (chain this (hit-test (+ "#" droppable) "25%"))
+                                         ((@ on-moved-callback current) droppable)
+                                         (return)))
+                                     ((@ gsap to)
+                                      (@ dg current 0 target)
+                                      (create
+                                       duration 0.3
+                                       rotation 0
+                                       scale 1
+                                       box-shadow "0px 10px 20px rgba(0,0,0,0.1)"))))))))
+           (lambda ()
+             (dbg "KILLING DRAGGABLE")
+             (when (@ dg current)
+               (chain dg current 0 (kill)))))
+         ;;seriously?
+         (list (chain -j-s-o-n (stringify (@ props droppables)))
+               (chain -j-s-o-n (stringify (@ props lower-cards)))
+               (@ props can-drag)))))
   (props)
   (setf (@ on-moved-callback current) (@ props on-moved))
   (psx
@@ -248,9 +265,10 @@
 
 (defcomponent -cards (((tableaus set-tableaus) (use-state
                                                 (lambda ()
-                                                  (make-tableaus 11))))
+                                                  (make-tableaus 21013))))
                       ((freecells set-freecells) (use-state '(nil nil nil nil)))
-                      ((foundations set-foundations) (use-state '(nil nil nil nil)))
+                      ((foundations set-foundations) (use-state (list (list) (list)
+                                                                      (list) (list))))
                       ((dragged-cards set-dragged-cards) (use-state (list))))
   ()
   (psx
@@ -303,6 +321,21 @@
                                         (set-tableaus (insert-card tableaus newcol card))))))))
                               (img (+ "src/assets/1_" suit "_" num "@1x.png")))))))
              do (incf idx)))
+     (let ((idx 0))
+       (loop for foundation in foundations do
+         (loop for card in foundation
+               for (suit num) = card do
+                 (setf (aref sorted-cards (card->index card))
+                       (psx (:-card
+                             ((foundation idx)
+                              (droppables (list))
+                              (id (card->id card))
+                              (key (card->id card))
+                              (can-drag false)
+                              (being-dragged false)
+                              (lower-cards (list))
+                              (img (+ "src/assets/1_" suit "_" num "@1x.png")))))))
+             do (incf idx)))
      (let ((col 0) (row 1))
        (loop for tableau in tableaus do
          (loop for card in tableau
@@ -322,7 +355,9 @@
                                                               collect (+ "freecell_" i))
                                                       (loop for i from 0 below 8
                                                             when (emptyp (aref tableaus i))
-                                                              collect (+ "dropbase_" i))))
+                                                              collect (+ "dropbase_" i))
+                                                      (loop for i from 0 below 4
+                                                            collect (+ "foundation_" i))))
                                   (lower-cards (chain lower-cards (map #'card->id)))
                                   (id (card->id card))
                                   (key (card->id card))
@@ -336,13 +371,23 @@
                                   (on-moved
                                    (lambda (dropped-on)
                                      (cond
-                                       ((and (chain dropped-on (includes "freecell"))
-                                             (= 1 (@ dragged-cards length)))
+                                       ((chain dropped-on (includes "freecell"))
                                         (let ((num (freecell->num dropped-on)))
-                                          (when (null (aref freecells num))
+                                          (when (and (null (aref freecells num))
+                                                     (= 1 (@ dragged-cards length)))
                                             (set-tableaus (delete-from-column tableaus col))
                                             (set-freecells (set-freecell freecells num card)))))
-                                       ((chain dropped-on (includes "foundation")))
+                                       ((chain dropped-on (includes "foundation"))
+                                        (let* ((num (freecell->num dropped-on))
+                                               (foundation (aref foundations num))
+                                               (dropped-on-card (last foundation)))
+                                          (dbg "attempted to drop" card "on" dropped-on-card)
+                                          (when (and (= 1 (@ dragged-cards length))
+                                                     (or (and (emptyp foundation) (= (aref card 1) 1))
+                                                         (and (not (emptyp foundation)) (next-in-suit card dropped-on-card))))
+                                            (set-tableaus (delete-from-column tableaus col))
+                                            (dbg "inserting" foundations num card)
+                                            (set-foundations (insert-card foundations num card)))))
                                        ((chain dropped-on (includes "dropbase"))
                                         (let ((num (freecell->num dropped-on)))
                                           (set-tableaus (move-card tableaus col row num))))
