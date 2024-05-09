@@ -281,15 +281,16 @@
          (:img ((src (@ props img)))))))
 
 (defcomponent -cards (((dragged-cards set-dragged-cards) (use-state (list)))
+                      (initial-board (use-memo (lambda ()
+                                                 (create
+                                                  tableaus (make-tableaus 21013)
+                                                  freecells '(nil nil nil nil)
+                                                  foundations (list (list) (list) (list) (list))))
+                                               (list)))
                       (board-state
-                       (use-history-state (create
-                                           tableaus (make-tableaus 21013)
-                                           freecells '(nil nil nil nil)
-                                           foundations (list (list) (list) (list) (list))))))
+                       (use-history-state initial-board)))
   ()
-  (let ((tableaus (@ board-state state tableaus))
-        (freecells (@ board-state state freecells))
-        (foundations (@ board-state state foundations)))
+  (with-slots (tableaus freecells foundations) (@ board-state state)
     (flet ((set-board-state (state) (chain board-state (set state)))
            (board-state () (structured-clone (@ board-state state))))
       (psx
@@ -423,11 +424,8 @@
                                                          (or (and (emptyp foundation) (= (aref card 1) 1))
                                                              (and (not (emptyp foundation)) (next-in-suit card dropped-on-card))))
                                                 (-> (board-state)
-                                                    (dbg)
                                                     (delete-from-column col)
-                                                    (dbg)
                                                     (insert-card 'foundations num card)
-                                                    (dbg)
                                                     (set-board-state)))))
                                            ((chain dropped-on (includes "dropbase"))
                                             (let ((num (freecell->num dropped-on)))
