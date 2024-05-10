@@ -54,6 +54,10 @@
   (destructuring-bind (suit num) card
     (+ "card_" suit "_" num)))
 
+(defun card->img (card)
+  (destructuring-bind (suit num) card
+    (+ "src/assets/newcards/" suit "_" num ".svg")))
+
 (defun id->card (id)
   (let ((parts (chain id (split "_"))))
     (list (aref parts 1)
@@ -107,24 +111,36 @@
     state))
 
 (defun auto-foundation (state)
-  (labels ((find-ready ()
+  (flet ((find-ready ()
              (with-slots (tableaus foundations) state
                (loop for tableau in tableaus
                      for col = 0 then (1+ col)
                      for card = (last tableau)
                      when card
-                     do
-                        (destructuring-bind (suit num) card
-                          (let* ((suit-idx (suit->index suit))
-                                (dropped-on-card (last (aref foundations suit-idx))))
-                            (when (next-in-suit card dropped-on-card)
+                       do
+                          (destructuring-bind (suit num) card
+                            (let* ((suit-idx (suit->index suit))
+                                   (dropped-on-card (last (aref foundations suit-idx))))
+                              (when (next-in-suit card dropped-on-card)
+                                (-> state
+                                    (delete-from-column col)
+                                    (insert-card 'foundations suit-idx card))
+                                (return-from find-ready true)))))
 
-                              (-> state
-                                  (delete-from-column col)
-                                  (insert-card 'foundations suit-idx card))
-                              (return-from find-ready true))))))
+               (loop for card in freecells
+                     for cell-idx = 0 then (1+ cell-idx)
+                     when card do
+                       (destructuring-bind (suit num) card
+                         (let* ((suit-idx (suit->index suit))
+                                (dropped-on-card (last (aref foundations suit-idx))))
+                           (when (next-in-suit card dropped-on-card)
+                             (-> state
+                                 (clear-freecell cell-idx)
+                                 (insert-card 'foundations suit-idx card))
+                             (return-from find-ready true))))))
              false)))
   (loop while (find-ready))
+
   state)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -295,6 +311,8 @@
                                 (+ 1000 (or (@ props row) 0))
                                 (or (@ props row) 0)))))
          (:img ((src (@ props img))
+                (width 108)
+                (height 154)
                 (draggable false))))))
 
 (defcomponent -cards (((dragged-cards set-dragged-cards) (use-state (list)))
@@ -376,7 +394,7 @@
                                                 (insert-card 'tableaus newcol card)
                                                 (auto-foundation)
                                                 (set-board-state))))))))
-                                  (img (+ "src/assets/1_" suit "_" num "@1x.png")))))))
+                                  (img (card->img card)))))))
                  do (incf idx)))
          (let ((idx 0))
            (loop for foundation in foundations do
@@ -391,7 +409,7 @@
                                   (can-drag false)
                                   (being-dragged false)
                                   (lower-cards (list))
-                                  (img (+ "src/assets/1_" suit "_" num "@1x.png")))))))
+                                  (img (card->img card)))))))
                  do (incf idx)))
          (let* ((col 0) (row 1)
                 (num-empty-cascades (chain tableaus (filter #'emptyp) length))
@@ -429,7 +447,7 @@
                                                         (chain tableau (slice (1- row)) (map #'card->id)))))
                                       (on-end-drag (lambda () (set-dragged-cards (list))))
                                       (being-dragged (not (= (chain dragged-cards (index-of (card->id card))) -1)))
-                                      (img (+ "src/assets/1_" suit "_" num "@1x.png"))
+                                      (img (card->img card))
                                       (on-moved
                                        (lambda (dropped-on)
                                          (cond
