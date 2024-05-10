@@ -311,6 +311,7 @@
     (flet ((set-board-state (state) (chain board-state (set state)))
            (board-state () (structured-clone (@ board-state state))))
       (psx
+       (:button ((onclick (lambda () (chain board-state (undo))))) "Undo")
        (let ((sorted-cards (list)))
          (let ((idx 0))
            (loop for card in freecells
@@ -392,7 +393,11 @@
                                   (lower-cards (list))
                                   (img (+ "src/assets/1_" suit "_" num "@1x.png")))))))
                  do (incf idx)))
-         (let ((col 0) (row 1))
+         (let* ((col 0) (row 1)
+                (num-empty-cascades (chain tableaus (filter #'emptyp) length))
+                (num-empty-cells (chain freecells (filter (lambda (x) (null x))) length))
+                (max-draggable (* (expt 2 num-empty-cascades)
+                                  (+ num-empty-cells 1))))
            (loop for tableau in tableaus do
              (loop for card in tableau
                    for (suit num) = card do
@@ -417,7 +422,8 @@
                                       (lower-cards (chain lower-cards (map #'card->id)))
                                       (id (card->id card))
                                       (key (card->id card))
-                                      (can-drag (is-tableau (append (list card) lower-cards)))
+                                      (can-drag (and (is-tableau (append (list card) lower-cards))
+                                                     (<= (length (append (list card) lower-cards)) max-draggable)))
                                       (on-start-drag (lambda ()
                                                        (set-dragged-cards
                                                         (chain tableau (slice (1- row)) (map #'card->id)))))
