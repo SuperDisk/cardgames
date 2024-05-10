@@ -39,15 +39,16 @@
             (chain (aref tableaus (mod i 8)) (push card)))
     tableaus))
 
+(defun suit->index (suit)
+  (case suit
+    ((spade) 0)
+    ((clover) 1)
+    ((heart) 2)
+    ((diamond) 3)))
+
 (defun card->index (card)
   (destructuring-bind (suit num) card
-    (+ num
-       (* 13
-          (case suit
-            ((spade) 0)
-            ((clover) 1)
-            ((heart) 2)
-            ((diamond) 3))))))
+    (+ num (* 13 (suit->index suit)))))
 
 (defun card->id (card)
   (destructuring-bind (suit num) card
@@ -105,6 +106,28 @@
     (setf (aref freecells idx) nil)
     state))
 
+(defun auto-foundation (state)
+  (labels ((find-ready ()
+             (with-slots (tableaus foundations) state
+               (loop for tableau in tableaus
+                     for col = 0 then (1+ col)
+                     for card = (last tableau)
+                     for (suit num) = card
+                     for suit-idx = (suit->index suit)
+                     for dropped-on-card = (last (aref foundations suit-idx))
+                     do (dbg "trying" card dropped-on-card (next-in-suit card dropped-on-card))
+                     when (next-in-suit card dropped-on-card)
+                       do
+                          (dbg "okay got one" col suit-idx card)
+                          (-> state
+                              (delete-from-column col)
+                              (insert-card 'foundations suit-idx card))
+                          (return-from find-ready true)))
+             false)))
+  (loop while (find-ready) do (dbg "trying again..."))
+  (dbg "done!" state)
+  state)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun without-idx (list idx)
@@ -127,9 +150,11 @@
                             (= (1- num2) num1))))
 
 (defun next-in-suit (card next)
-  (destructuring-binds (((suit1 num1) card)
-                        ((suit2 num2) next))
-                       (and (= suit1 suit2) (= (1- num1) num2))))
+  (if (not next)
+      (= (aref card 1) 1)
+      (destructuring-bind (suit1 num1) card
+        (destructuring-bind (suit2 num2) next
+          (and (= suit1 suit2) (= (1- num1) num2))))))
 
 (defun is-tableau (cards)
   (loop for (c1 c2) on cards
@@ -278,7 +303,8 @@
                   "z-index" (if (or z-index-boosted (@ props being-dragged))
                                 (+ 1000 (or (@ props row) 0))
                                 (or (@ props row) 0)))))
-         (:img ((src (@ props img)))))))
+         (:img ((src (@ props img))
+                (draggable false))))))
 
 (defcomponent -cards (((dragged-cards set-dragged-cards) (use-state (list)))
                       (initial-board (use-memo (lambda ()
@@ -330,6 +356,7 @@
                                               (-> (board-state)
                                                   (set-freecell num card)
                                                   (clear-freecell idx)
+                                                  (auto-foundation)
                                                   (set-board-state)))))
                                          ((chain dropped-on (includes "foundation"))
                                           (let* ((num (freecell->num dropped-on))
@@ -341,12 +368,14 @@
                                               (-> (board-state)
                                                   (clear-freecell idx)
                                                   (insert-card 'foundations num card)
+                                                  (auto-foundation)
                                                   (set-board-state)))))
                                          ((chain dropped-on (includes "dropbase"))
                                           (let ((num (freecell->num dropped-on)))
                                             (-> (board-state)
                                                 (clear-freecell idx)
                                                 (insert-card 'tableaus num card)
+                                                (auto-foundation)
                                                 (set-board-state))))
                                          (t
                                           (destructuring-bind
@@ -355,6 +384,7 @@
                                             (-> (board-state)
                                                 (clear-freecell idx)
                                                 (insert-card 'tableaus newcol card)
+                                                (auto-foundation)
                                                 (set-board-state))))))))
                                   (img (+ "src/assets/1_" suit "_" num "@1x.png")))))))
                  do (incf idx)))
@@ -415,6 +445,7 @@
                                                 (-> (board-state)
                                                     (delete-from-column col)
                                                     (set-freecell num card)
+                                                    (auto-foundation)
                                                     (set-board-state)))))
                                            ((chain dropped-on (includes "foundation"))
                                             (let* ((num (freecell->num dropped-on))
@@ -426,11 +457,13 @@
                                                 (-> (board-state)
                                                     (delete-from-column col)
                                                     (insert-card 'foundations num card)
+                                                    (auto-foundation)
                                                     (set-board-state)))))
                                            ((chain dropped-on (includes "dropbase"))
                                             (let ((num (freecell->num dropped-on)))
                                               (-> (board-state)
                                                   (move-card col row num)
+                                                  (auto-foundation)
                                                   (set-board-state))))
                                            (t
                                             (destructuring-bind
@@ -438,6 +471,7 @@
                                                 (find-card (id->card dropped-on) tableaus)
                                               (-> (board-state)
                                                   (move-card col row newcol)
+                                                  (auto-foundation)
                                                   (set-board-state)))))))))))))
                    do (incf row))
                  do (incf col) (setf row 1))
@@ -535,3 +569,5 @@
 (var root
      (let ((-app (psx (:-game ()))))
        ((@ preact render) -app (@ document body))))
+
+(chain console (clear))
