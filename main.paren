@@ -112,20 +112,19 @@
                (loop for tableau in tableaus
                      for col = 0 then (1+ col)
                      for card = (last tableau)
-                     for (suit num) = card
-                     for suit-idx = (suit->index suit)
-                     for dropped-on-card = (last (aref foundations suit-idx))
-                     do (dbg "trying" card dropped-on-card (next-in-suit card dropped-on-card))
-                     when (next-in-suit card dropped-on-card)
-                       do
-                          (dbg "okay got one" col suit-idx card)
-                          (-> state
-                              (delete-from-column col)
-                              (insert-card 'foundations suit-idx card))
-                          (return-from find-ready true)))
+                     when card
+                     do
+                        (destructuring-bind (suit num) card
+                          (let* ((suit-idx (suit->index suit))
+                                (dropped-on-card (last (aref foundations suit-idx))))
+                            (when (next-in-suit card dropped-on-card)
+
+                              (-> state
+                                  (delete-from-column col)
+                                  (insert-card 'foundations suit-idx card))
+                              (return-from find-ready true))))))
              false)))
-  (loop while (find-ready) do (dbg "trying again..."))
-  (dbg "done!" state)
+  (loop while (find-ready))
   state)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -292,14 +291,6 @@
                   "border" "solid"
                   "border-width" "1px"
                   "position" "absolute"
-                  "transform" (if (and (@ props can-drag) (not (emptyp
-                                                                (chain (@ props droppables)
-                                                                       (filter (lambda (x)
-                                                                                 (and
-                                                                                  (not (chain x (includes "freecell")))
-                                                                                  (not (chain x (includes "foundation")))
-                                                                                  (not (chain x (includes "dropbase"))))))))))
-                                  "rotate(10deg)")
                   "z-index" (if (or z-index-boosted (@ props being-dragged))
                                 (+ 1000 (or (@ props row) 0))
                                 (or (@ props row) 0)))))
