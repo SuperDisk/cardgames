@@ -56,6 +56,7 @@
 
 (defun card->img (card)
   (destructuring-bind (suit num) card
+    #+nil (+ "src/assets/1_" suit "_" num "@1x.png")
     (+ "src/assets/newcards/" suit "_" num ".svg")))
 
 (defun id->card (id)
@@ -112,7 +113,7 @@
 
 (defun auto-foundation (state)
   (flet ((find-ready ()
-             (with-slots (tableaus foundations) state
+             (with-slots (tableaus foundations freecells) state
                (loop for tableau in tableaus
                      for col = 0 then (1+ col)
                      for card = (last tableau)
@@ -311,6 +312,7 @@
                                 (+ 1000 (or (@ props row) 0))
                                 (or (@ props row) 0)))))
          (:img ((src (@ props img))
+                (style (create "display" "block"))
                 (width 108)
                 (height 154)
                 (draggable false))))))
