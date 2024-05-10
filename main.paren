@@ -338,7 +338,7 @@
                                   (on-start-drag (lambda () (set-dragged-cards (list (card->id card)))))
                                   (on-end-drag (lambda () (set-dragged-cards (list))))
                                   (on-moved
-                                   (fwrap (idx)
+                                   (fwrap (idx suit)
                                      (lambda (dropped-on)
                                        (cond
                                          ((chain dropped-on (includes "freecell"))
@@ -353,12 +353,10 @@
                                           (let* ((num (freecell->num dropped-on))
                                                  (foundation (aref foundations num))
                                                  (dropped-on-card (last foundation)))
-                                            (when (or (and (emptyp foundation) (= (aref card 1) 1))
-                                                      (and (not (emptyp foundation))
-                                                           (next-in-suit card dropped-on-card)))
+                                            (when (next-in-suit card dropped-on-card)
                                               (-> (board-state)
                                                   (clear-freecell idx)
-                                                  (insert-card 'foundations num card)
+                                                  (insert-card 'foundations (suit->index suit) card)
                                                   (auto-foundation)
                                                   (set-board-state)))))
                                          ((chain dropped-on (includes "dropbase"))
@@ -399,7 +397,7 @@
              (loop for card in tableau
                    for (suit num) = card do
                      (let ((lower-cards (chain tableau (slice row))))
-                       (fwrap (col row)
+                       (fwrap (col row suit num)
                          (setf (aref sorted-cards (card->index card))
                                (psx (:-card
                                      ((col col)
@@ -443,11 +441,10 @@
                                                    (foundation (aref foundations num))
                                                    (dropped-on-card (last foundation)))
                                               (when (and (= 1 (@ dragged-cards length))
-                                                         (or (and (emptyp foundation) (= (aref card 1) 1))
-                                                             (and (not (emptyp foundation)) (next-in-suit card dropped-on-card))))
+                                                         (next-in-suit card dropped-on-card))
                                                 (-> (board-state)
                                                     (delete-from-column col)
-                                                    (insert-card 'foundations num card)
+                                                    (insert-card 'foundations (suit->index suit) card)
                                                     (auto-foundation)
                                                     (set-board-state)))))
                                            ((chain dropped-on (includes "dropbase"))
