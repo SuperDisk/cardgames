@@ -7,15 +7,37 @@
         <meta name="color-scheme" content="light dark" />
         <title>Vite + Preact</title>
         <style>
+         @font-face {
+             font-family: "Figno";
+             src: url("src/assets/fonts/Figno-Regular.otf");
+         }
+         @font-face {
+             font-family: "Matias";
+             src: url("src/assets/fonts/Matias.otf");
+         }
+
          * {
              -webkit-user-select: none; /* Safari */
              -moz-user-select: none;    /* Firefox */
              -ms-user-select: none;     /* Internet Explorer/Edge */
              user-select: none;         /* Non-prefixed version, currently supported by Chrome, Edge, Opera and Firefox */
+             font-family: "Matias", sans-serif;
          }
 
          body {
              background-color: cornflowerblue;
+         }
+
+         .ui-button {
+             transition: transform 0.1s ease-in-out;
+         }
+
+         .ui-button:hover {
+             transform: scale(1.1);
+         }
+
+         .ui-button:active {
+             transform: scale(0.9);
          }
         </style>
     </head>
