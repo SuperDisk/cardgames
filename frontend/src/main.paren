@@ -437,7 +437,7 @@
 (defun random-seed ()
   (chain -Math (floor (* (chain -Math (random)) 32000))))
 
-(defcomponent -cards (((seed set-seed) (use-state 21013))
+(defcomponent -cards (((seed set-seed) (use-state (random-seed) #+nil 21013))
                       ((dragged-cards set-dragged-cards) (use-state (list)))
                       (initial-board (use-memo (lambda () (make-game-state seed))
                                                (list)))
@@ -451,8 +451,7 @@
                              "width" "100vw"
                              "height" "100vh"
                              "left" "0"
-                             "top" "0"
-                             )))
+                             "top" "0")))
              (:div ((style (create
                             "position" "absolute"
                             "left" "7px"
@@ -473,7 +472,28 @@
                                                  (when (@ board-state can-redo)
                                                    (chain board-state (redo)))))
                                      (disabled (not (@ board-state can-redo))))
-                                    "↪ Redo"))
+                                    "↪ Redo")
+                       (:-ui-button ((on-click (lambda ()
+                                                 (block func
+                                                   (loop for tableau in tableaus
+                                                         for card1 = (last tableau) do
+                                                           (loop for tableau2 in tableaus
+                                                                 for card2 = (last tableau2)
+                                                                 when (suitable-droppable card1 card2) do
+                                                                   (let ((id (+ "#" (card->id card1))))
+                                                                     (chain gsap
+                                                                            (to id
+                                                                                (/ 1 4)
+                                                                                (create y -50
+                                                                                        ease "power2.out")))
+                                                                     (chain gsap
+                                                                            (to id
+                                                                                (/ 1 2)
+                                                                                (create y 0
+                                                                                        ease "bounce.out"
+                                                                                        delay (/ 1 4))))
+                                                                     (return-from func))))))))
+                                    "Hint"))
                    (:span ((style (create color "white"
                                           "font-size" "15pt")))
                           (+ "FreeCell #" seed))))
@@ -710,12 +730,12 @@
 (defcomponent -background-overlay () ()
   (psx
    (:div ((style (create
-                  position "absolute"
+                  position "fixed"
                   left 0
                   top 0
                   "z-index" -1
-                  width "100vw"
-                  height "100vh"
+                  width "100%"
+                  height "100%"
                   background-color "rgb(36, 83, 36)"
                   background-image "url(background_tile_transparent@2x.png)")))
          (:div ((style (create
