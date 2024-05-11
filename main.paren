@@ -2,6 +2,65 @@
   (apply (@ console log) rest)
   (@ rest 0))
 
+(defun use-history-state-reducer (state action)
+  (with-slots (past present future) state
+    (case (@ action type)
+      (("UNDO") (create
+                 past (chain past (slice 0 (1- (length past))))
+                 present (aref past (1- (length past)))
+                 future (append (list present) future)))
+      (("REDO") (create
+                 past (append past (list present))
+                 present (aref future 0)
+                 future (chain future (slice 1))))
+      (("SET")
+       (with-slots (new-present) action
+         (if (= new-present present)
+             state
+             (create
+              past (append past (list present))
+              present new-present
+              future (list)))))
+      (("CLEAR") (create
+                  past (list)
+                  present (@ action initial-present)
+                  future (list))))))
+
+(defcomponent use-history-state2
+    ((initial-present-ref (use-ref initial-present))
+     ((state dispatch) (use-reducer use-history-state-reducer
+                                    (create
+                                     past (list)
+                                     present (@ initial-present-ref current)
+                                     future (list))))
+     (undo (use-callback (lambda ()
+                           (dispatch (create type "UNDO")))
+                         (list can-undo)))
+     (redo (use-callback (lambda ()
+                           (dispatch (create type "REDO")))
+                         (list can-redo)))
+     (set (use-callback (lambda (new-present)
+                          (dispatch (create type "SET" new-present new-present)))
+                        (list)))
+     (clear (use-callback (lambda (new-present)
+                            (dispatch (dbg (create
+                                            type "CLEAR"
+                                            initial-present (if (undefined new-present)
+                                                                (@ initial-present-ref current)
+                                                                new-present)))))
+                          (list))))
+  (initial-present)
+  (let ((can-undo (not (= (@ state past length) 0)))
+        (can-redo (not (= (@ state future length) 0))))
+    (create
+     state (@ state present)
+     set set
+     undo undo
+     redo redo
+     clear clear
+     can-undo can-undo
+     can-redo can-redo)))
+
 (defun make-rng (seed)
   #'(lambda ()
       (ash (setf seed (mod (+ (* 214013 seed) 2531011) (expt 2 31))) -16)))
@@ -194,9 +253,6 @@
         when (and c2 (not (suitable-droppable c2 c1))) do (return false)
           finally (return true)))
 
-(defun obj+= (obj1 obj2)
-  (chain -Object (assign obj1 obj2)))
-
 (defun get-offset (el)
   (create left (@ el offset-left)
           top (@ el offset-top)))
@@ -365,15 +421,20 @@
                                 "black"))))
            children))))
 
-(defcomponent -cards (((dragged-cards set-dragged-cards) (use-state (list)))
-                      (initial-board (use-memo (lambda ()
-                                                 (create
-                                                  tableaus (make-tableaus 21013)
-                                                  freecells '(nil nil nil nil)
-                                                  foundations (list (list) (list) (list) (list))))
+(defun make-game-state (seed)
+  (create
+   tableaus (make-tableaus seed)
+   freecells '(nil nil nil nil)
+   foundations (list (list) (list) (list) (list))))
+
+(defun random-seed ()
+  (chain -Math (floor (* (chain -Math (random)) 32000))))
+
+(defcomponent -cards (((seed set-seed) (use-state 21013))
+                      ((dragged-cards set-dragged-cards) (use-state (list)))
+                      (initial-board (use-memo (lambda () (make-game-state seed))
                                                (list)))
-                      (board-state
-                       (use-history-state initial-board)))
+                      (board-state (use-history-state2 initial-board)))
   ()
   (with-slots (tableaus freecells foundations) (@ board-state state)
     (flet ((set-board-state (state) (chain board-state (set state)))
@@ -381,28 +442,34 @@
       (psx
        (:div ((style (create "position" "absolute"
                              "width" "100vw"
-                             "height" "100vh")))
+                             "height" "100vh"
+                             "left" "0"
+                             "top" "0"
+                             )))
              (:div ((style (create
                             "position" "absolute"
                             "left" "7px"
                             "bottom" "0px")))
                    (:b ()
                        (:-ui-button ((on-click (lambda ()
-                                                 (chain board-state (clear))
-                                                 (chain board-state (set
-                                                                     (create
-                                                                      tableaus (make-tableaus (chain -Math (floor (* (chain -Math (random)) 30000))))
-                                                                      freecells '(nil nil nil nil)
-                                                                      foundations (list (list) (list) (list) (list)))
-                                                                     ))
-                                                 (set-dragged-cards (list)))))
+                                                 (let ((new-seed (random-seed)))
+                                                   (set-seed new-seed)
+                                                   (chain board-state (clear (make-game-state new-seed)))
+                                                   (set-dragged-cards (list))))))
                                     "New Game")
-                       (:-ui-button ((on-click (lambda () (chain board-state (undo))))
+                       (:-ui-button ((on-click (lambda ()
+                                                 (when (@ board-state can-undo)
+                                                   (chain board-state (undo)))))
                                      (disabled (not (@ board-state can-undo))))
                                     "↩ Undo")
-                       (:-ui-button ((on-click (lambda () (chain board-state (redo))))
+                       (:-ui-button ((on-click (lambda ()
+                                                 (when (@ board-state can-redo)
+                                                   (chain board-state (redo)))))
                                      (disabled (not (@ board-state can-redo))))
-                                    "↪ Redo"))))
+                                    "↪ Redo"))
+                   (:span ((style (create color "white"
+                                          "font-size" "15pt")))
+                          (+ "FreeCell #" seed))))
        (:div
         ((style (create "position" "absolute")))
         (:-free-cells ())
