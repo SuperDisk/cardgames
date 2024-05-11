@@ -56,8 +56,9 @@
 
 (defun card->img (card)
   (destructuring-bind (suit num) card
-    #+nil (+ "src/assets/1_" suit "_" num "@1x.png")
-    (+ "src/assets/newcards/" suit "_" num ".svg")))
+    (if false
+        (+ "src/assets/1_" suit "_" num "@1x.png")
+        (+ "src/assets/newcards/" suit "_" num ".svg"))))
 
 (defun id->card (id)
   (let ((parts (chain id (split "_"))))
@@ -180,6 +181,10 @@
 (defun obj+= (obj1 obj2)
   (chain -Object (assign obj1 obj2)))
 
+(defun get-offset (el)
+  (create left (@ el offset-left)
+          top (@ el offset-top)))
+
 (defcomponent -card
     ((dg (use-ref))
      (card-ref (use-ref))
@@ -197,9 +202,9 @@
              (cond
                ((not (null (@ props freecell)))
                 (with-slots (left top)
-                    (chain document
-                           (get-element-by-id (+ "freecell_" (@ props freecell)))
-                           (get-bounding-client-rect))
+                    (get-offset
+                     (chain document
+                            (get-element-by-id (+ "freecell_" (@ props freecell)))))
                   ((@ gsap to)
                    (@ card-ref current)
                    (create
@@ -208,9 +213,9 @@
                     left left))))
                ((not (null (@ props foundation)))
                 (with-slots (left top)
-                    (chain document
-                           (get-element-by-id (+ "foundation_" (@ props foundation)))
-                           (get-bounding-client-rect))
+                    (get-offset
+                     (chain document
+                            (get-element-by-id (+ "foundation_" (@ props foundation)))))
                   ((@ gsap to)
                    (@ card-ref current)
                    (create
@@ -331,7 +336,8 @@
     (flet ((set-board-state (state) (chain board-state (set state)))
            (board-state () (structured-clone (@ board-state state))))
       (psx
-       (:button ((onclick (lambda () (chain board-state (undo))))) "Undo")
+       (:button ((style (create "margin-top" 500))
+                 (onclick (lambda () (chain board-state (undo))))) "Undo")
        (let ((sorted-cards (list)))
          (let ((idx 0))
            (loop for card in freecells
@@ -555,10 +561,11 @@
 
 (defcomponent -game () ()
   (psx
-   (:-free-cells ())
-   (:-cards ())
    (:-background-overlay ())
-   (:-drop-bases ())))
+   (:div ((style (create "position" "absolute")))
+         (:-free-cells ())
+         (:-cards ())
+         (:-drop-bases ()))))
 
 (defcomponent -background-overlay () ()
   (psx
