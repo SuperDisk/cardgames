@@ -1,0 +1,1 @@
+sbcl --script parenize.lisp
