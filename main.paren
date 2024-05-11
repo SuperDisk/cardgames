@@ -15,6 +15,11 @@
       `(-> ,(list* (caar forms) initial (cdar forms))
            ,@(cdr forms))))
 
+(defun class-names (&rest names)
+  (chain names
+         (filter (lambda (x) x))
+         (join " ")))
+
 (defun new-deck (seed)
   (let ((hand (list))
         (rng (make-rng seed)))
@@ -350,10 +355,10 @@
                       "padding-top" "10px")))
              (:b ()
                  (:div ((onclick (lambda () (chain board-state (undo))))
-                        (class-name (+ "ui-button"
-                                       (if (@ board-state can-undo)
-                                           ""
-                                           " disabled")))
+                        (class-name (class-names
+                                      "ui-button"
+                                      (unless (@ board-state can-undo)
+                                        "disabled")))
                         (style (create
                                 "display" "inline-block"
                                 "border-radius" "7px"
@@ -367,10 +372,9 @@
                                             "grey"))))
                        "↩ Undo")
                  (:div ((onclick (lambda () (chain board-state (redo))))
-                        (class-name (+ "ui-button"
-                                       (if (@ board-state can-redo)
-                                           ""
-                                           " disabled")))
+                        (class-name (class-names "ui-button"
+                                           (unless (@ board-state can-redo)
+                                             "disabled")))
                         (style (create
                                 "display" "inline-block"
                                 "border-radius" "7px"
