@@ -49,11 +49,12 @@
                           (dispatch (create type "SET" new-present new-present)))
                         (list)))
      (clear (use-callback (lambda (new-present)
-                            (dispatch (dbg (create
-                                            type "CLEAR"
-                                            initial-present (if (undefined new-present)
-                                                                (@ initial-present-ref current)
-                                                                new-present)))))
+                            (dispatch (create
+                                       type "CLEAR"
+                                       initial-present
+                                       (if (undefined new-present)
+                                           (@ initial-present-ref current)
+                                           new-present))))
                           (list))))
   (initial-present)
   (let ((can-undo (not (= (@ state past length) 0)))
@@ -272,7 +273,7 @@
      (on-moved-callback (use-ref))
      ((z-index-boosted set-z-index-boosted) (use-state
                                              (lambda ()
-                                               (dbg "REMOUNTING CARD")
+                                               #+nil (dbg "REMOUNTING CARD")
                                                false)))
      (_ (use-layout-effect
          (lambda ()
@@ -382,7 +383,7 @@
                                        scale 1
                                        box-shadow "0px 10px 20px rgba(0,0,0,0.1)"))))))))
            (lambda ()
-             (dbg "KILLING DRAGGABLE")
+             #+nil (dbg "KILLING DRAGGABLE")
              (when (@ dg current)
                (chain dg current 0 (kill)))))
          ;;seriously?

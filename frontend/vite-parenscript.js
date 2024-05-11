@@ -10,7 +10,7 @@ export default function parenscriptPlugin() {
       if (id.endsWith('.paren')) {
         const code = fs.readFileSync(id, 'utf8');
 
-        if (true || process.env.NODE_ENV === 'production') {
+        if (process.env.NODE_ENV === 'production') {
           const compiled = execSync('sh parenize.sh', {
             input: code,
             encoding: 'utf8'  // Ensure the output is a string
