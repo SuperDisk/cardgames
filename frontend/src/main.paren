@@ -2,6 +2,12 @@
   (apply (@ console log) rest)
   (@ rest 0))
 
+(defmacro let2 (bindings &rest forms)
+  `((lambda ()
+      ,@(loop for (name val) in bindings
+              collect `(var ,name ,val))
+      ,@forms)))
+
 (defun use-history-state-reducer (state action)
   (with-slots (past present future) state
     (case (@ action type)
@@ -132,8 +138,8 @@
 (defun card->img (card)
   (destructuring-bind (suit num) card
     (if false
-        (+ "src/assets/1_" suit "_" num "@1x.png")
-        (+ "src/assets/newcards/" suit "_" num ".svg"))))
+        (+ "1_" suit "_" num "@1x.png")
+        (+ "newcards/" suit "_" num ".svg"))))
 
 (defun id->card (id)
   (let ((parts (chain id (split "_"))))
@@ -474,7 +480,7 @@
         ((style (create "position" "absolute")))
         (:-free-cells ())
         (:-drop-bases ())
-        (let ((sorted-cards (list)))
+        (let2 ((sorted-cards (list)))
           (let ((idx 0))
             (loop for card in freecells
                   when card do
@@ -710,7 +716,7 @@
                   width "100vw"
                   height "100vh"
                   background-color "rgb(36, 83, 36)"
-                  background-image "url(src/assets/background_tile_transparent@2x.png)")))
+                  background-image "url(background_tile_transparent@2x.png)")))
          (:div ((style (create
                         "width" "100%"
                         "height" "100%"
