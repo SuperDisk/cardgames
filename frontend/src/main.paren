@@ -144,18 +144,18 @@
 
 (defun card->name (card)
   (destructuring-bind (suit num) card
-      (+ (cond
-           ((= num 1) "Ace")
-           ((= num 11) "Jack")
-           ((= num 12) "Queen")
-           ((= num 13) "King")
-           (t num))
-         " of "
-         (case suit
-           ((spade) "Spades")
-           ((clover) "Clubs")
-           ((diamond) "Diamonds")
-           ((heart) "Hearts")))))
+    (+ (cond
+         ((= num 1) "Ace")
+         ((= num 11) "Jack")
+         ((= num 12) "Queen")
+         ((= num 13) "King")
+         (t num))
+       " of "
+       (case suit
+         ((spade) "Spades")
+         ((clover) "Clubs")
+         ((diamond) "Diamonds")
+         ((heart) "Hearts")))))
 
 (defun id->card (id)
   (let ((parts (chain id (split "_"))))
