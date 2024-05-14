@@ -195,7 +195,23 @@
     state))
 
 (defun auto-foundation (state)
-  (flet ((find-ready ()
+  (flet ((unneeded (card)
+           (destructuring-bind (suit num) card
+             (when (> num 2)
+               (with-slots (tableaus freecells) state
+                 (loop for tableau in tableaus do
+                   (loop for (other-suit other-num) in tableau
+                         when (and (not (= other-suit suit))
+                                   (< other-num num))
+                           do (return-from unneeded false)))
+                 (loop for card2 in freecells
+                       do (when card2
+                            (destructuring-bind (other-suit other-num) card2
+                              (when (and (not (= other-suit suit))
+                                         (< other-num num))
+                                (return-from unneeded false)))))))
+             true))
+         (find-ready ()
            (with-slots (tableaus foundations freecells) state
              (loop for tableau in tableaus
                    for col = 0 then (1+ col)
@@ -205,7 +221,8 @@
                         (destructuring-bind (suit num) card
                           (let* ((suit-idx (suit->index suit))
                                  (dropped-on-card (last (aref foundations suit-idx))))
-                            (when (next-in-suit card dropped-on-card)
+                            (when (and (next-in-suit card dropped-on-card)
+                                       (unneeded card))
                               (-> state
                                   (delete-from-column col)
                                   (insert-card 'foundations suit-idx card))
@@ -217,14 +234,14 @@
                      (destructuring-bind (suit num) card
                        (let* ((suit-idx (suit->index suit))
                               (dropped-on-card (last (aref foundations suit-idx))))
-                         (when (next-in-suit card dropped-on-card)
+                         (when (and (next-in-suit card dropped-on-card)
+                                    (unneeded card))
                            (-> state
                                (clear-freecell cell-idx)
                                (insert-card 'foundations suit-idx card))
                            (return-from find-ready true))))))
            false)))
   (loop while (find-ready))
-
   state)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -305,7 +322,7 @@
             dependencies (list doing-win-animation)))))
      (_ (use-layout-effect
          (lambda ()
-           (chain gsap (kill-tweens-of (@ card-ref current) "left,top"))
+           (chain gsap (kill-tweens-of (@ card-ref current) "left,top,bottom"))
            (when (not (@ props being-dragged))
              (cond
                ((@ props doing-win-animation)
@@ -381,14 +398,14 @@
 
                                    on-press
                                    (lambda ()
-                                     (chain gsap (kill-tweens-of (@ card-ref current) "left,top"))
+                                     (chain gsap (kill-tweens-of (@ card-ref current) "left,top,bottom"))
                                      (set-z-index-boosted true)
                                      (setf (@ start-x current) (@ this x))
                                      (setf (@ start-y current) (@ this y))
                                      (setf (@ companions current)
                                            (loop for id in (@ props lower-cards)
                                                  for el = (chain document (get-element-by-id id))
-                                                 do (chain gsap (kill-tweens-of el))
+                                                 do (chain gsap (kill-tweens-of el "left,top,bottom"))
                                                  collect (create
                                                           element el
                                                           x (chain gsap (get-property el "left"))
@@ -532,7 +549,7 @@
                          "text-shadow" "4px 4px 0px black")))
          (:div ((id "you-win")) "You win!"))))
 
-(defcomponent -cards (((seed set-seed) (use-state (random-seed) #+nil 21013))
+(defcomponent -cards (((seed set-seed) (use-state #+nil (random-seed) 21013))
                       ((dragged-cards set-dragged-cards) (use-state (list)))
                       (initial-board (use-memo (lambda () (make-game-state seed))
                                                (list)))
