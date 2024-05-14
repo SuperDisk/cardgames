@@ -291,6 +291,7 @@
      ((z-index-boosted set-z-index-boosted) (use-state false))
      (_ (use-g-s-a-p
          (lambda ()
+           ;; (dbg "first effect")
            (when (@ props doing-win-animation)
              ;; (chain gsap (kill-tweens-of ".card"))
              (chain
@@ -322,6 +323,7 @@
             dependencies (list doing-win-animation)))))
      (_ (use-layout-effect
          (lambda ()
+           ;; (dbg "second effect")
            (chain gsap (kill-tweens-of (@ card-ref current) "left,top,bottom"))
            (when (not (@ props being-dragged))
              (cond
@@ -373,7 +375,12 @@
                  (@ card-ref current)
                  (create
                   duration 0.3
-                  top (+ 130 (* (@ props row) 50))
+                  top (+ 180 (* (1- (@ props row)) 50
+                                (- 1
+                                   (let ((threshold 9))
+                                     (if (> (@ props col-count) threshold)
+                                         (* 0.08 (- (@ props col-count) threshold))
+                                         0)))))
                   left (* (@ props col) 120)
                   bottom nil
                   on-complete set-z-index-boosted
@@ -383,9 +390,11 @@
                (@ props being-dragged)
                (@ props freecell)
                (@ props foundation)
-               (@ props doing-win-animation))))
+               (@ props doing-win-animation)
+               (@ props col-count))))
      (_ (use-effect
          (lambda ()
+           ;; (dbg "third effect")
            (when (@ props can-drag)
              (setf (@ dg current)
                    (chain draggable
@@ -723,6 +732,7 @@
                                       (psx (:-card
                                             ((col col)
                                              (row row)
+                                             (col-count (length tableau))
                                              (droppables (append (loop for tableau in tableaus
                                                                        when (and (not (emptyp tableau))
                                                                                  (suitable-droppable card (last tableau)))
