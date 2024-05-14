@@ -565,7 +565,7 @@
                          "text-shadow" "4px 4px 0px black")))
          (:div ((id "you-win")) "You win!"))))
 
-(defcomponent -cards (((seed set-seed) (use-state #+nil (random-seed) 21013))
+(defcomponent -cards (((seed set-seed) (use-state (random-seed) #+nil 21013))
                       ((dragged-cards set-dragged-cards) (use-state (list)))
                       (initial-board (use-memo (lambda () (make-game-state seed))
                                                (list)))
@@ -628,7 +628,7 @@
                                                                                           delay (/ 1 4))))
                                                                        (return-from func))))))))
                                       "Hint")
-                         (:-ui-button ((on-click (lambda ()
+                         #+nil (:-ui-button ((on-click (lambda ()
                                                    (chain board-state
                                                           (set (winning-state))))))
                                       "Debug"))
