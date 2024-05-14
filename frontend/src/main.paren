@@ -124,9 +124,9 @@
 (defun suit->index (suit)
   (case suit
     ((spade) 0)
-    ((clover) 1)
-    ((heart) 2)
-    ((diamond) 3)))
+    ((diamond) 1)
+    ((clover) 2)
+    ((heart) 3)))
 
 (defun card->index (card)
   (destructuring-bind (suit num) card
@@ -202,13 +202,13 @@
                  (loop for tableau in tableaus do
                    (loop for (other-suit other-num) in tableau
                          when (and (not (= other-suit suit))
-                                   (< other-num num))
+                                   (= num (1+ other-num)))
                            do (return-from unneeded false)))
                  (loop for card2 in freecells
                        do (when card2
                             (destructuring-bind (other-suit other-num) card2
                               (when (and (not (= other-suit suit))
-                                         (< other-num num))
+                                         (= num (1+ other-num)))
                                 (return-from unneeded false)))))))
              true))
          (find-ready ()
@@ -292,7 +292,6 @@
      (_ (use-g-s-a-p
          (lambda ()
            (when (@ props doing-win-animation)
-             ;; (chain gsap (kill-tweens-of ".card"))
              (chain
               gsap
               (from-to (@ card-ref current)
@@ -316,7 +315,6 @@
                    ease "sine.inOut"
                    delay (* (card->index (id->card (@ props id))) 0.1)))))
            undefined)
-
          (with-defaults ((doing-win-animation false)) props
            (create
             revert-on-update true
@@ -374,12 +372,9 @@
                  (@ card-ref current)
                  (create
                   duration 0.3
-                  top (+ 180 (* (1- (@ props row)) 50
-                                (- 1
-                                   (let ((threshold 9))
-                                     (if (> (@ props col-count) threshold)
-                                         (* 0.08 (- (@ props col-count) threshold))
-                                         0)))))
+                  top (+ 180 (* (1- (@ props row))
+                                50
+                                (/ 9 (max 9 (1- (@ props col-count))))))
                   left (* (@ props col) 120)
                   bottom nil
                   on-complete set-z-index-boosted
@@ -458,6 +453,13 @@
            (lambda ()
              #+nil (dbg "KILLING DRAGGABLE" (@ props id))
              (when (@ dg current)
+               ((@ gsap to)
+                (@ dg current 0 target)
+                (create
+                 duration 0.3
+                 rotation 0
+                 scale 1
+                 box-shadow "0px 10px 20px rgba(0,0,0,0.1)"))
                (chain dg current 0 (kill)))))
          ;;seriously?
          (list (chain -j-s-o-n (stringify (@ props droppables)))
@@ -477,7 +479,11 @@
                   "position" "absolute"
                   "pointer-events" "auto"
                   "z-index" (+ "" (if (or z-index-boosted (@ props being-dragged))
-                                      (+ 1000 (or (@ props row) 0))
+                                      (+ 1000
+                                         (or (@ props row) 0)
+                                         (if (or (@ props freecell) (@ props foundation))
+                                             100
+                                             0))
                                       (or (@ props row) 0))))))
          (:img ((src (@ props img))
                 (style (create "display" "block"))
@@ -511,11 +517,13 @@
 
 (defun winning-state ()
   (create
-   tableaus (loop for i from 0 below 8
-                  collect (list))
+   tableaus (append (loop for i from 0 below 7
+                          collect (list))
+                    (list
+                     (list '(spade 12) '(spade 13))))
    freecells '(nil nil nil nil)
    foundations (list
-                (loop for i from 1 to 13 collect (list 'spade i))
+                (loop for i from 1 to 11 collect (list 'spade i))
                 (loop for i from 1 to 13 collect (list 'clover i))
                 (loop for i from 1 to 13 collect (list 'diamond i))
                 (loop for i from 1 to 13 collect (list 'heart i)))))
