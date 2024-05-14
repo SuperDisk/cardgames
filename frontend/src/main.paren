@@ -271,10 +271,7 @@
      (start-x (use-ref))
      (start-y (use-ref))
      (on-moved-callback (use-ref))
-     ((z-index-boosted set-z-index-boosted) (use-state
-                                             (lambda ()
-                                               #+nil (dbg "REMOUNTING CARD")
-                                               false)))
+     ((z-index-boosted set-z-index-boosted) (use-state false))
      (_ (use-g-s-a-p
          (lambda ()
            (when (@ props doing-win-animation)
@@ -312,12 +309,13 @@
            (when (not (@ props being-dragged))
              (cond
                ((@ props doing-win-animation)
-                (let ((idx (- (card->index (id->card (@ props id))) 10)))
+                (let ((idx (- (card->index (id->card (@ props id))) 5)))
                   ((@ gsap to)
                    (@ card-ref current)
                    (create
                     duration 3
-                    top (+ (if (evenp idx) 600) 000)
+                    top (when (oddp idx) 0)
+                    bottom (when (evenp idx) 100)
                     left (+ (* idx 40))
                     on-complete set-z-index-boosted
                     on-complete-params (list false)))))
@@ -333,6 +331,7 @@
                     duration 0.3
                     top top
                     left left
+                    bottom nil
                     on-complete set-z-index-boosted
                     on-complete-params (list false)))))
                ((not (null (@ props foundation)))
@@ -347,6 +346,7 @@
                     duration 0.3
                     top top
                     left left
+                    bottom nil
                     box-shadow "none"
                     on-complete set-z-index-boosted
                     on-complete-params (list false)))))
@@ -358,6 +358,7 @@
                   duration 0.3
                   top (+ 130 (* (@ props row) 50))
                   left (* (@ props col) 120)
+                  bottom nil
                   on-complete set-z-index-boosted
                   on-complete-params (list false)))))))
          (list (@ props row)
@@ -449,6 +450,7 @@
                   "border" "solid"
                   "border-width" "1px"
                   "position" "absolute"
+                  "pointer-events" "auto"
                   "z-index" (if (or z-index-boosted (@ props being-dragged))
                                 (+ 1000 (or (@ props row) 0))
                                 (or (@ props row) 0)))))
@@ -517,8 +519,7 @@
                            ease "sine.inOut")))))))
   ()
   (psx
-   (:div ((id "you-win")
-          (style (create "position" "absolute"
+   (:div ((style (create "position" "absolute"
                          "width" "100vw"
                          "height" "100vh"
                          "left" "0"
@@ -529,7 +530,7 @@
                          "font-size" "100pt"
                          "color" "white"
                          "text-shadow" "4px 4px 0px black")))
-         "You win!")))
+         (:div ((id "you-win")) "You win!"))))
 
 (defcomponent -cards (((seed set-seed) (use-state (random-seed) #+nil 21013))
                       ((dragged-cards set-dragged-cards) (use-state (list)))
@@ -602,7 +603,9 @@
                                             "font-size" "15pt")))
                             (+ "FreeCell #" seed))))
          (:div
-          ((style (create "position" "absolute")))
+          ((style (create "position" "absolute"
+                          "height" "100vh"
+                          "pointer-events" "none")))
           (:-free-cells ())
           (:-drop-bases ())
           (let2 ((sorted-cards (list)))
