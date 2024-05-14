@@ -291,7 +291,6 @@
      ((z-index-boosted set-z-index-boosted) (use-state false))
      (_ (use-g-s-a-p
          (lambda ()
-           ;; (dbg "first effect")
            (when (@ props doing-win-animation)
              ;; (chain gsap (kill-tweens-of ".card"))
              (chain
@@ -315,7 +314,8 @@
                    repeat -1
                    yoyo true
                    ease "sine.inOut"
-                   delay (* (card->index (id->card (@ props id))) 0.1))))))
+                   delay (* (card->index (id->card (@ props id))) 0.1)))))
+           undefined)
 
          (with-defaults ((doing-win-animation false)) props
            (create
@@ -323,7 +323,6 @@
             dependencies (list doing-win-animation)))))
      (_ (use-layout-effect
          (lambda ()
-           ;; (dbg "second effect")
            (chain gsap (kill-tweens-of (@ card-ref current) "left,top,bottom"))
            (when (not (@ props being-dragged))
              (cond
@@ -384,7 +383,8 @@
                   left (* (@ props col) 120)
                   bottom nil
                   on-complete set-z-index-boosted
-                  on-complete-params (list false)))))))
+                  on-complete-params (list false))))))
+           undefined)
          (list (@ props row)
                (@ props col)
                (@ props being-dragged)
@@ -394,7 +394,6 @@
                (@ props col-count))))
      (_ (use-effect
          (lambda ()
-           ;; (dbg "third effect")
            (when (@ props can-drag)
              (setf (@ dg current)
                    (chain draggable
@@ -457,7 +456,7 @@
                                        scale 1
                                        box-shadow "0px 10px 20px rgba(0,0,0,0.1)"))))))))
            (lambda ()
-             #+nil (dbg "KILLING DRAGGABLE")
+             #+nil (dbg "KILLING DRAGGABLE" (@ props id))
              (when (@ dg current)
                (chain dg current 0 (kill)))))
          ;;seriously?
@@ -477,9 +476,9 @@
                   "border-width" "1px"
                   "position" "absolute"
                   "pointer-events" "auto"
-                  "z-index" (if (or z-index-boosted (@ props being-dragged))
-                                (+ 1000 (or (@ props row) 0))
-                                (or (@ props row) 0)))))
+                  "z-index" (+ "" (if (or z-index-boosted (@ props being-dragged))
+                                      (+ 1000 (or (@ props row) 0))
+                                      (or (@ props row) 0))))))
          (:img ((src (@ props img))
                 (style (create "display" "block"))
                 (width 108)
@@ -489,7 +488,7 @@
 (defcomponent -ui-button () (props)
   (with-defaults (on-click (disabled false) children) props
     (psx
-     (:div ((onclick on-click)
+     (:div ((on-click on-click)
             (class-name (class-names "ui-button" (when disabled "disabled")))
             (style (create
                     "display" "inline-block"
@@ -515,11 +514,11 @@
    tableaus (loop for i from 0 below 8
                   collect (list))
    freecells '(nil nil nil nil)
-   foundations (dbg (list
-                     (loop for i from 1 to 13 collect (list 'spade i))
-                     (loop for i from 1 to 13 collect (list 'clover i))
-                     (loop for i from 1 to 13 collect (list 'diamond i))
-                     (loop for i from 1 to 13 collect (list 'heart i))))))
+   foundations (list
+                (loop for i from 1 to 13 collect (list 'spade i))
+                (loop for i from 1 to 13 collect (list 'clover i))
+                (loop for i from 1 to 13 collect (list 'diamond i))
+                (loop for i from 1 to 13 collect (list 'heart i)))))
 
 (defun random-seed ()
   (chain -Math (floor (* (chain -Math (random)) 32000))))
@@ -571,7 +570,7 @@
       (let ((won (= 52 (loop for foundation in foundations
                              summing (length foundation)))))
         (psx
-         (when (dbg (or won doing-win-animation))
+         (when (or won doing-win-animation)
            (psx (:-you-win ())))
          (:div ((style (create "position" "absolute"
                                "width" "100vw"
@@ -885,9 +884,9 @@
                         "mix-blend-mode" "overlay"
                         "background" "-webkit-radial-gradient(top,ellipse farthest-corner,hsla(0,0%,100%,.16) 100%,hsla(0,0%,100%,.08) 0),-webkit-radial-gradient(top,ellipse farthest-corner,hsla(0,0%,100%,.32) 0,hsla(0,0%,100%,0) 100%),-webkit-radial-gradient(top,ellipse farthest-corner,hsla(0,0%,100%,.32) 0,hsla(0,0%,100%,0) 64%)")))))))
 
-((@ preact render) "" (@ document body) nil)
+(chain preact (render "" (@ document body) nil))
 (var root
      (let ((-app (psx (:-game ()))))
-       ((@ preact render) -app (@ document body))))
+       (chain preact (render -app (@ document body)))))
 
 (chain console (clear))
