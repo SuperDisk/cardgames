@@ -275,10 +275,51 @@
                                              (lambda ()
                                                #+nil (dbg "REMOUNTING CARD")
                                                false)))
+     (_ (use-g-s-a-p
+         (lambda ()
+           (when (@ props doing-win-animation)
+             ;; (chain gsap (kill-tweens-of ".card"))
+             (chain
+              gsap
+              (from-to (@ card-ref current)
+                       (create
+                        rotation -3)
+                       (create
+                        rotation 3
+                        duration 0.8
+                        repeat -1
+                        yoyo true
+                        ease "sine.inOut"
+                        delay (* (card->index (id->card (@ props id))) 0.1))))
+             (chain
+              gsap
+              (to (@ card-ref current)
+                  (create
+                   y 40
+                   duration 1
+                   repeat -1
+                   yoyo true
+                   ease "sine.inOut"
+                   delay (* (card->index (id->card (@ props id))) 0.1))))))
+
+         (with-defaults ((doing-win-animation false)) props
+           (create
+            revert-on-update true
+            dependencies (list doing-win-animation)))))
      (_ (use-layout-effect
          (lambda ()
            (when (not (@ props being-dragged))
              (cond
+               ((@ props doing-win-animation)
+                (let ((idx (- (card->index (id->card (@ props id))) 10)))
+                  ((@ gsap to)
+                   (@ card-ref current)
+                   (create
+                    duration 3
+                    top (+ (if (evenp idx) 600) 000)
+                    left (+ (* idx 40))
+                    on-complete set-z-index-boosted
+                    on-complete-params (list false)))))
                ((not (null (@ props freecell)))
                 (with-slots (left top)
                     (get-offset
@@ -318,7 +359,7 @@
                   left (* (@ props col) 120)
                   on-complete set-z-index-boosted
                   on-complete-params (list false)))))))
-         (list (@ props row) (@ props col) (@ props being-dragged) (@ props freecell) (@ props foundation))))
+         (list (@ props row) (@ props col) (@ props being-dragged) (@ props freecell) (@ props foundation) (@ props doing-win-animation))))
      (_ (use-effect
          (lambda ()
            (when (@ props can-drag)
@@ -333,7 +374,7 @@
 
                                    on-press
                                    (lambda ()
-                                     (chain gsap (kill-tweens-of (@ card-ref current)))
+                                     (chain gsap (kill-tweens-of (@ card-ref current) "left,top"))
                                      (set-z-index-boosted true)
                                      (setf (@ start-x current) (@ this x))
                                      (setf (@ start-y current) (@ this y))
@@ -394,6 +435,7 @@
   (setf (@ on-moved-callback current) (@ props on-moved))
   (psx
    (:div ((id (@ props id))
+          (class-name "card")
           (ref card-ref)
           (style (create
                   "background-color" "white"
@@ -434,6 +476,17 @@
    freecells '(nil nil nil nil)
    foundations (list (list) (list) (list) (list))))
 
+(defun winning-state ()
+  (create
+   tableaus (loop for i from 0 below 8
+                  collect (list))
+   freecells '(nil nil nil nil)
+   foundations (dbg (list
+                     (loop for i from 1 to 13 collect (list 'spade i))
+                     (loop for i from 1 to 13 collect (list 'clover i))
+                     (loop for i from 1 to 13 collect (list 'diamond i))
+                     (loop for i from 1 to 13 collect (list 'heart i))))))
+
 (defun random-seed ()
   (chain -Math (floor (* (chain -Math (random)) 32000))))
 
@@ -441,7 +494,8 @@
                       ((dragged-cards set-dragged-cards) (use-state (list)))
                       (initial-board (use-memo (lambda () (make-game-state seed))
                                                (list)))
-                      (board-state (use-history-state2 initial-board)))
+                      (board-state (use-history-state2 initial-board))
+                      ((doing-win-animation set-doing-win-animation) (use-state false)))
   ()
   (with-slots (tableaus freecells foundations) (@ board-state state)
     (flet ((set-board-state (state) (chain board-state (set state)))
@@ -461,7 +515,8 @@
                                                  (let ((new-seed (random-seed)))
                                                    (set-seed new-seed)
                                                    (chain board-state (clear (make-game-state new-seed)))
-                                                   (set-dragged-cards (list))))))
+                                                   (set-dragged-cards (list))
+                                                   (set-doing-win-animation false)))))
                                     "New Game")
                        (:-ui-button ((on-click (lambda ()
                                                  (when (@ board-state can-undo)
@@ -493,7 +548,38 @@
                                                                                         ease "bounce.out"
                                                                                         delay (/ 1 4))))
                                                                      (return-from func))))))))
-                                    "Hint"))
+                                    "Hint")
+                       (:-ui-button ((on-click (lambda ()
+                                                 (chain board-state
+                                                        (set (winning-state)))
+                                                 #+nil (set-doing-win-animation true)
+                                                 #+nil (loop for div in (chain document (query-selector-all ".card"))
+                                                             for delay = 0 then (+ delay 0.1)
+                                                             do
+                                                                (chain
+                                                                 gsap
+                                                                 (to div
+                                                                     (create
+                                                                      y 30
+                                                                      duration 1
+                                                                      repeat -1
+                                                                      yoyo true
+                                                                      ease "sine.inOut"
+                                                                      delay delay)))
+                                                             )
+                                                 #+nil (from-to
+                                                        ".card"
+                                                        (create y -20)
+                                                        (create y 20
+                                                                ease "sine.inOut"
+                                                                yoyo true
+                                                                repeat -1
+                                                                duration 0.5
+                                                                stagger (create
+                                                                         each 0.1
+                                                                         from "center"
+                                                                         grid "auto"))))))
+                                    "Debug"))
                    (:span ((style (create color "white"
                                           "font-size" "15pt")))
                           (+ "FreeCell #" seed))))
@@ -501,165 +587,171 @@
         ((style (create "position" "absolute")))
         (:-free-cells ())
         (:-drop-bases ())
-        (let2 ((sorted-cards (list)))
-          (let ((idx 0))
-            (loop for card in freecells
-                  when card do
-                    (destructuring-bind (suit num) card
-                      (setf (aref sorted-cards (card->index card))
-                            (psx (:-card
-                                  ((freecell idx)
-                                   (droppables (append (loop for tableau in tableaus
-                                                             when (and (not (emptyp tableau))
-                                                                       (suitable-droppable card (last tableau)))
-                                                               collect (card->id (last tableau)))
-                                                       (loop for i from 0 below 4
-                                                             collect (+ "freecell_" i))
-                                                       (loop for i from 0 below 8
-                                                             when (emptyp (aref tableaus i))
-                                                               collect (+ "dropbase_" i))
-                                                       (loop for i from 0 below 4
-                                                             collect (+ "foundation_" i))))
-                                   (id (card->id card))
-                                   (key (card->id card))
-                                   (can-drag true)
-                                   (being-dragged (not (= (chain dragged-cards (index-of (card->id card))) -1)))
-                                   (lower-cards (list))
-                                   (on-start-drag (lambda () (set-dragged-cards (list (card->id card)))))
-                                   (on-end-drag (lambda () (set-dragged-cards (list))))
-                                   (on-moved
-                                    (fwrap (idx suit)
-                                      (lambda (dropped-on)
-                                        (cond
-                                          ((chain dropped-on (includes "freecell"))
-                                           (let ((num (freecell->num dropped-on)))
-                                             (when (null (aref freecells num))
-                                               (-> (board-state)
-                                                   (set-freecell num card)
-                                                   (clear-freecell idx)
-                                                   (auto-foundation)
-                                                   (set-board-state)))))
-                                          ((chain dropped-on (includes "foundation"))
-                                           (let* ((num (freecell->num dropped-on))
-                                                  (foundation (aref foundations num))
-                                                  (dropped-on-card (last foundation)))
-                                             (when (next-in-suit card dropped-on-card)
-                                               (-> (board-state)
-                                                   (clear-freecell idx)
-                                                   (insert-card 'foundations (suit->index suit) card)
-                                                   (auto-foundation)
-                                                   (set-board-state)))))
-                                          ((chain dropped-on (includes "dropbase"))
-                                           (let ((num (freecell->num dropped-on)))
-                                             (-> (board-state)
-                                                 (clear-freecell idx)
-                                                 (insert-card 'tableaus num card)
-                                                 (auto-foundation)
-                                                 (set-board-state))))
-                                          (t
-                                           (destructuring-bind
-                                               (newcol newrow)
-                                               (find-card (id->card dropped-on) tableaus)
-                                             (-> (board-state)
-                                                 (clear-freecell idx)
-                                                 (insert-card 'tableaus newcol card)
-                                                 (auto-foundation)
-                                                 (set-board-state))))))))
-                                   (img (card->img card)))))))
-                  do (incf idx)))
-          (let ((idx 0))
-            (loop for foundation in foundations do
-              (loop for card in foundation
-                    for (suit num) = card do
-                      (setf (aref sorted-cards (card->index card))
-                            (psx (:-card
-                                  ((foundation idx)
-                                   (droppables (list))
-                                   (id (card->id card))
-                                   (key (card->id card))
-                                   (can-drag false)
-                                   (being-dragged false)
-                                   (lower-cards (list))
-                                   (img (card->img card)))))))
-                  do (incf idx)))
-          (let* ((col 0) (row 1)
-                 (num-empty-cascades (chain tableaus (filter #'emptyp) length))
-                 (num-empty-cells (chain freecells (filter (lambda (x) (null x))) length))
-                 (max-draggable (* (expt 2 num-empty-cascades)
-                                   (+ num-empty-cells 1))))
-            (loop for tableau in tableaus do
-              (loop for card in tableau
-                    for (suit num) = card do
-                      (let ((lower-cards (chain tableau (slice row))))
-                        (fwrap (col row suit num)
+        (let2 ((sorted-cards (list))
+               (won (= 52 (dbg (loop for foundation in foundations
+                                     summing (length foundation))))))
+              (let ((idx 0))
+                (loop for card in freecells
+                      when card do
+                        (destructuring-bind (suit num) card
                           (setf (aref sorted-cards (card->index card))
                                 (psx (:-card
-                                      ((col col)
-                                       (row row)
+                                      ((freecell idx)
                                        (droppables (append (loop for tableau in tableaus
                                                                  when (and (not (emptyp tableau))
                                                                            (suitable-droppable card (last tableau)))
                                                                    collect (card->id (last tableau)))
                                                            (loop for i from 0 below 4
-                                                                 when (not (aref freecells i))
-                                                                   collect (+ "freecell_" i))
+                                                                 collect (+ "freecell_" i))
                                                            (loop for i from 0 below 8
                                                                  when (emptyp (aref tableaus i))
                                                                    collect (+ "dropbase_" i))
                                                            (loop for i from 0 below 4
                                                                  collect (+ "foundation_" i))))
-                                       (lower-cards (chain lower-cards (map #'card->id)))
                                        (id (card->id card))
                                        (key (card->id card))
-                                       (can-drag (and (is-tableau (append (list card) lower-cards))
-                                                      (<= (length (append (list card) lower-cards)) max-draggable)))
-                                       (on-start-drag (lambda ()
-                                                        (set-dragged-cards
-                                                         (chain tableau (slice (1- row)) (map #'card->id)))))
-                                       (on-end-drag (lambda () (set-dragged-cards (list))))
+                                       (can-drag true)
                                        (being-dragged (not (= (chain dragged-cards (index-of (card->id card))) -1)))
-                                       (img (card->img card))
-                                       (on-moved
-                                        (lambda (dropped-on)
-                                          (cond
-                                            ((chain dropped-on (includes "freecell"))
-                                             (let ((num (freecell->num dropped-on)))
-                                               (when (and (null (aref freecells num))
-                                                          (= 1 (@ dragged-cards length)))
-                                                 (-> (board-state)
-                                                     (delete-from-column col)
-                                                     (set-freecell num card)
-                                                     (auto-foundation)
-                                                     (set-board-state)))))
-                                            ((chain dropped-on (includes "foundation"))
-                                             (let* ((num (freecell->num dropped-on))
-                                                    (foundation (aref foundations num))
-                                                    (dropped-on-card (last foundation)))
-                                               (when (and (= 1 (@ dragged-cards length))
-                                                          (next-in-suit card dropped-on-card))
-                                                 (-> (board-state)
-                                                     (delete-from-column col)
-                                                     (insert-card 'foundations (suit->index suit) card)
-                                                     (auto-foundation)
-                                                     (set-board-state)))))
-                                            ((chain dropped-on (includes "dropbase"))
-                                             (let ((num (freecell->num dropped-on)))
-                                               (-> (board-state)
-                                                   (move-card col row num)
-                                                   (auto-foundation)
-                                                   (set-board-state))))
-                                            (t
-                                             (destructuring-bind
-                                                 (newcol newrow)
-                                                 (find-card (id->card dropped-on) tableaus)
-                                               (-> (board-state)
-                                                   (move-card col row newcol)
-                                                   (auto-foundation)
-                                                   (set-board-state)))))))))))))
-                    do (incf row))
-                  do (incf col) (setf row 1))
 
-            sorted-cards)))))))
+                                       (doing-win-animation (or doing-win-animation won))
+                                       (lower-cards (list))
+                                       (on-start-drag (lambda () (set-dragged-cards (list (card->id card)))))
+                                       (on-end-drag (lambda () (set-dragged-cards (list))))
+                                       (on-moved
+                                        (fwrap (idx suit)
+                                          (lambda (dropped-on)
+                                            (cond
+                                              ((chain dropped-on (includes "freecell"))
+                                               (let ((num (freecell->num dropped-on)))
+                                                 (when (null (aref freecells num))
+                                                   (-> (board-state)
+                                                       (set-freecell num card)
+                                                       (clear-freecell idx)
+                                                       (auto-foundation)
+                                                       (set-board-state)))))
+                                              ((chain dropped-on (includes "foundation"))
+                                               (let* ((num (freecell->num dropped-on))
+                                                      (foundation (aref foundations num))
+                                                      (dropped-on-card (last foundation)))
+                                                 (when (next-in-suit card dropped-on-card)
+                                                   (-> (board-state)
+                                                       (clear-freecell idx)
+                                                       (insert-card 'foundations (suit->index suit) card)
+                                                       (auto-foundation)
+                                                       (set-board-state)))))
+                                              ((chain dropped-on (includes "dropbase"))
+                                               (let ((num (freecell->num dropped-on)))
+                                                 (-> (board-state)
+                                                     (clear-freecell idx)
+                                                     (insert-card 'tableaus num card)
+                                                     (auto-foundation)
+                                                     (set-board-state))))
+                                              (t
+                                               (destructuring-bind
+                                                   (newcol newrow)
+                                                   (find-card (id->card dropped-on) tableaus)
+                                                 (-> (board-state)
+                                                     (clear-freecell idx)
+                                                     (insert-card 'tableaus newcol card)
+                                                     (auto-foundation)
+                                                     (set-board-state))))))))
+                                       (img (card->img card)))))))
+                      do (incf idx)))
+              (let ((idx 0))
+                (loop for foundation in foundations do
+                  (loop for card in foundation
+                        for (suit num) = card do
+                          (setf (aref sorted-cards (card->index card))
+                                (psx (:-card
+                                      ((foundation idx)
+                                       (droppables (list))
+                                       (id (card->id card))
+                                       (key (card->id card))
+                                       (can-drag false)
+                                       (being-dragged false)
+                                       (lower-cards (list))
+                                       (doing-win-animation (or doing-win-animation won))
+                                       (img (card->img card)))))))
+                      do (incf idx)))
+              (let* ((col 0) (row 1)
+                     (num-empty-cascades (chain tableaus (filter #'emptyp) length))
+                     (num-empty-cells (chain freecells (filter (lambda (x) (null x))) length))
+                     (max-draggable (* (expt 2 num-empty-cascades)
+                                       (+ num-empty-cells 1))))
+                (loop for tableau in tableaus do
+                  (loop for card in tableau
+                        for (suit num) = card do
+                          (let ((lower-cards (chain tableau (slice row))))
+                            (fwrap (col row suit num)
+                              (setf (aref sorted-cards (card->index card))
+                                    (psx (:-card
+                                          ((col col)
+                                           (row row)
+                                           (droppables (append (loop for tableau in tableaus
+                                                                     when (and (not (emptyp tableau))
+                                                                               (suitable-droppable card (last tableau)))
+                                                                       collect (card->id (last tableau)))
+                                                               (loop for i from 0 below 4
+                                                                     when (not (aref freecells i))
+                                                                       collect (+ "freecell_" i))
+                                                               (loop for i from 0 below 8
+                                                                     when (emptyp (aref tableaus i))
+                                                                       collect (+ "dropbase_" i))
+                                                               (loop for i from 0 below 4
+                                                                     collect (+ "foundation_" i))))
+                                           (lower-cards (chain lower-cards (map #'card->id)))
+                                           (id (card->id card))
+                                           (key (card->id card))
+                                           (can-drag (and (is-tableau (append (list card) lower-cards))
+                                                          (<= (length (append (list card) lower-cards)) max-draggable)))
+                                           (on-start-drag (lambda ()
+                                                            (set-dragged-cards
+                                                             (chain tableau (slice (1- row)) (map #'card->id)))))
+                                           (on-end-drag (lambda () (set-dragged-cards (list))))
+                                           (being-dragged (not (= (chain dragged-cards (index-of (card->id card))) -1)))
+                                           (doing-win-animation (or doing-win-animation won))
+                                           (img (card->img card))
+                                           (on-moved
+                                            (lambda (dropped-on)
+                                              (cond
+                                                ((chain dropped-on (includes "freecell"))
+                                                 (let ((num (freecell->num dropped-on)))
+                                                   (when (and (null (aref freecells num))
+                                                              (= 1 (@ dragged-cards length)))
+                                                     (-> (board-state)
+                                                         (delete-from-column col)
+                                                         (set-freecell num card)
+                                                         (auto-foundation)
+                                                         (set-board-state)))))
+                                                ((chain dropped-on (includes "foundation"))
+                                                 (let* ((num (freecell->num dropped-on))
+                                                        (foundation (aref foundations num))
+                                                        (dropped-on-card (last foundation)))
+                                                   (when (and (= 1 (@ dragged-cards length))
+                                                              (next-in-suit card dropped-on-card))
+                                                     (-> (board-state)
+                                                         (delete-from-column col)
+                                                         (insert-card 'foundations (suit->index suit) card)
+                                                         (auto-foundation)
+                                                         (set-board-state)))))
+                                                ((chain dropped-on (includes "dropbase"))
+                                                 (let ((num (freecell->num dropped-on)))
+                                                   (-> (board-state)
+                                                       (move-card col row num)
+                                                       (auto-foundation)
+                                                       (set-board-state))))
+                                                (t
+                                                 (destructuring-bind
+                                                     (newcol newrow)
+                                                     (find-card (id->card dropped-on) tableaus)
+                                                   (-> (board-state)
+                                                       (move-card col row newcol)
+                                                       (auto-foundation)
+                                                       (set-board-state)))))))))))))
+                        do (incf row))
+                      do (incf col) (setf row 1))
+
+                sorted-cards)))))))
 
 (defcomponent -free-cell ()
   (props)

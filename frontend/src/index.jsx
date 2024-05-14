@@ -1,10 +1,8 @@
 import * as preact from 'preact';
 import * as preactHooks from 'preact/hooks';
-import * as dndKit from '@dnd-kit/core'
 import { gsap } from 'gsap';
 import { Draggable } from 'gsap/Draggable';
-import { useGSAP } from "@gsap/react";
-import { useHistoryState } from "@uidotdev/usehooks";
+import { useGSAP } from '@gsap/react';
 
 gsap.registerPlugin(Draggable);
 
@@ -28,8 +26,6 @@ self.$RefreshSig$ = () => {
 self.preact = preact;
 self.preactHooks = preactHooks;
 self.flushUpdates = flushUpdates;
-self.dndKit = dndKit;
 self.gsap = gsap;
-self.useGSAP = useGSAP;
 self.draggable = Draggable;
-self.useHistoryState = useHistoryState;
+self.useGSAP = useGSAP;
