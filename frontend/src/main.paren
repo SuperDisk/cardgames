@@ -142,6 +142,21 @@
         (+ "1_" suit "_" num "@1x.png")
         (+ "newcards/" suit "_" num ".svg"))))
 
+(defun card->name (card)
+  (destructuring-bind (suit num) card
+      (+ (cond
+           ((= num 1) "Ace")
+           ((= num 11) "Jack")
+           ((= num 12) "Queen")
+           ((= num 13) "King")
+           (t num))
+         " of "
+         (case suit
+           ((spade) "Spades")
+           ((clover) "Clubs")
+           ((diamond) "Diamonds")
+           ((heart) "Hearts")))))
+
 (defun id->card (id)
   (let ((parts (chain id (split "_"))))
     (list (aref parts 1)
@@ -303,7 +318,7 @@
                         repeat -1
                         yoyo true
                         ease "sine.inOut"
-                        delay (* (card->index (id->card (@ props id))) 0.1))))
+                        delay (* (card->index (@ props card)) 0.1))))
              (chain
               gsap
               (to (@ card-ref current)
@@ -313,7 +328,7 @@
                    repeat -1
                    yoyo true
                    ease "sine.inOut"
-                   delay (* (card->index (id->card (@ props id))) 0.1)))))
+                   delay (* (card->index (@ props card)) 0.1)))))
            undefined)
          (with-defaults ((doing-win-animation false)) props
            (create
@@ -325,7 +340,7 @@
            (when (not (@ props being-dragged))
              (cond
                ((@ props doing-win-animation)
-                (let ((idx (- (card->index (id->card (@ props id))) 5)))
+                (let ((idx (- (card->index (@ props card)) 5)))
                   ((@ gsap to)
                    (@ card-ref current)
                    (create
@@ -478,14 +493,15 @@
                   "border-width" "1px"
                   "position" "absolute"
                   "pointer-events" "auto"
-                  "z-index" (+ "" (if (or z-index-boosted (@ props being-dragged))
-                                      (+ 1000
-                                         (or (@ props row) 0)
-                                         (if (or (@ props freecell) (@ props foundation))
-                                             100
-                                             0))
-                                      (or (@ props row) 0))))))
+                  "z-index" (if (or z-index-boosted (@ props being-dragged))
+                                (+ 1000
+                                   (or (@ props row) 0)
+                                   (if (or (@ props freecell) (@ props foundation))
+                                       100
+                                       0))
+                                (or (@ props row) 0)))))
          (:img ((src (@ props img))
+                (alt (card->name (@ props card)))
                 (style (create "display" "block"))
                 (width 108)
                 (height 154)
@@ -629,9 +645,9 @@
                                                                        (return-from func))))))))
                                       "Hint")
                          #+nil (:-ui-button ((on-click (lambda ()
-                                                   (chain board-state
-                                                          (set (winning-state))))))
-                                      "Debug"))
+                                                         (chain board-state
+                                                                (set (winning-state))))))
+                                            "Debug"))
                      (:span ((style (create color "white"
                                             "font-size" "15pt")))
                             (+ "FreeCell #" seed))))
@@ -660,6 +676,7 @@
                                                                      collect (+ "dropbase_" i))
                                                              (loop for i from 0 below 4
                                                                    collect (+ "foundation_" i))))
+                                         (card card)
                                          (id (card->id card))
                                          (key (card->id card))
                                          (can-drag true)
@@ -719,6 +736,7 @@
                                          (droppables (list))
                                          (id (card->id card))
                                          (key (card->id card))
+                                         (card card)
                                          (can-drag false)
                                          (being-dragged false)
                                          (lower-cards (list))
@@ -755,6 +773,7 @@
                                              (lower-cards (chain lower-cards (map #'card->id)))
                                              (id (card->id card))
                                              (key (card->id card))
+                                             (card card)
                                              (can-drag (and (is-tableau (append (list card) lower-cards))
                                                             (<= (length (append (list card) lower-cards)) max-draggable)))
                                              (on-start-drag (lambda ()
