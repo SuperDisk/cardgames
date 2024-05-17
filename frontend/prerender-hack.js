@@ -1,3 +1,14 @@
+/*
+  This script post-processes the vite build by pre-rendering "dehydrated" HTML
+  using Preact, and then injecting it into the built HTML file with a string
+  substitution. I thought that was kind of hacky but it's the way the official
+  Vite Vue plugin does it:
+
+  https://github.com/vitejs/vite-plugin-vue/blob/main/playground/ssr-vue/prerender.js
+
+  The way this is implemented is absolutely horrendous, since it shells out to
+  compile the Parenscript and then evals (!!!) it, but it does work. For now.
+ */
 import fs from 'node:fs';
 import path from 'node:path';
 import url from 'node:url';
@@ -5,8 +16,6 @@ import process from 'process';
 import { execSync } from 'child_process';
 import render from 'preact-render-to-string';
 
-// import { gsap } from 'gsap';
-// import { Draggable } from 'gsap/Draggable';
 import { useGSAP } from '@gsap/react';
 
 import * as preact from 'preact';
@@ -20,12 +29,8 @@ const compiled = execSync('sh parenize.sh PREBUILD', {
   encoding: 'utf8'
 });
 
-function rewriteToGlobalFunctions(code) {
-  return code.replace(/function\s+(\w+)\s*\(([^)]*)\)\s*{([^}]*)}/g, 'global.$1 = function($2) {$3}');
-}
-
-const code2=rewriteToGlobalFunctions(compiled.replace('useGSAP', 'preactHooks.useEffect'));
-eval(code2);
+const code2 = compiled.replace('useGSAP', 'preactHooks.useEffect');
+eval(code2+'global.Game = Game;');
 
 const dehydrated = render(preact.h(Game, null));
 
