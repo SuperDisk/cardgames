@@ -913,9 +913,14 @@
                         "mix-blend-mode" "overlay"
                         "background" "-webkit-radial-gradient(top,ellipse farthest-corner,hsla(0,0%,100%,.16) 100%,hsla(0,0%,100%,.08) 0),-webkit-radial-gradient(top,ellipse farthest-corner,hsla(0,0%,100%,.32) 0,hsla(0,0%,100%,0) 100%),-webkit-radial-gradient(top,ellipse farthest-corner,hsla(0,0%,100%,.32) 0,hsla(0,0%,100%,0) 64%)")))))))
 
-(chain preact (render "" (@ document body) nil))
-(var root
-     (let ((-app (psx (:-game ()))))
-       (chain preact (render -app (@ document body)))))
+(when-dev
+ (chain preact (render "" (@ document body) nil))
+ (var root
+      (let ((-app (psx (:-game ()))))
+        (chain preact (render -app (@ document body)))))
 
-(chain console (clear))
+ (chain console (clear)))
+
+(when-prod
+ (let ((-app (psx (:-game ()))))
+   (chain preact (hydrate -app (@ document body)))))

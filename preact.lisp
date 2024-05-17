@@ -75,6 +75,10 @@
 
 (defmacro+ps when-dev (&rest forms)
   (when (eq *build-mode* :dev)
+    `(progn ,@forms)))
+
+(defmacro+ps when-prod (&rest forms)
+  (when (eq *build-mode* :prod)
       `(progn ,@forms)))
 
 (defmacro+ps defcomponent (name hooks params &rest code)
