@@ -74,9 +74,8 @@
       `(progn ,@forms)))
 
 (defmacro+ps when-dev (&rest forms)
-  (if (eq *build-mode* :dev)
-      `(progn ,@forms)
-      `(progn)))
+  (when (eq *build-mode* :dev)
+      `(progn ,@forms)))
 
 (defmacro+ps defcomponent (name hooks params &rest code)
   (let ((hook-names (loop for (bindings (hook . args)) in hooks
