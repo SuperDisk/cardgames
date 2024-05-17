@@ -644,7 +644,7 @@
                                                                                           delay (/ 1 4))))
                                                                        (return-from func))))))))
                                       "Hint")
-                         #+nil (:-ui-button ((on-click (lambda ()
+                         #-prod (:-ui-button ((on-click (lambda ()
                                                          (chain board-state
                                                                 (set (winning-state))))))
                                             "Debug"))

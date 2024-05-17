@@ -70,21 +70,24 @@
   (let ((hook-names (loop for (bindings (hook . args)) in hooks
                           when (not (is-builtin-hook hook))
                             collect hook)))
-    `(let ((s (|$RefreshSig$|)))
+    (declare (ignorable hook-names))
+    `(let (#-prod (s (|$RefreshSig$|)))
        (defun ,name ,params
-         (s)
+         #-prod (s)
          (destructuring-binds
           ,(loop for (bindings (hook . args)) in hooks collect
                  `(,bindings (,(if (is-builtin-hook hook)
                                    `(@ preact-hooks ,hook)
                                    hook) . ,args)))
           ,@code))
-       (s ,name
-          ,(format nil "~{~a~^~%~}" (mapcar #'hook-signature hooks))
-          false
-          (lambda () (list ,@hook-names)))
-       (|$RefreshReg$| ,name ,(symbol-to-js-string name))
-       (flush-updates))))
+       #-prod
+       (progn
+         (s ,name
+            ,(format nil "~{~a~^~%~}" (mapcar #'hook-signature hooks))
+            false
+            (lambda () (list ,@hook-names)))
+         (|$RefreshReg$| ,name ,(symbol-to-js-string name))
+         (flush-updates)))))
 
 (defmacro+ps js-import (stuff obj)
   `(progn
