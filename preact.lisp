@@ -68,34 +68,30 @@
                  collect `(psx ,child)))))
     (t element)))
 
-(defmacro+ps when-dev-let (bindings &rest forms)
-  (if (eq *build-mode* :dev)
+(defmacro+ps when-mode-let (mode bindings &rest forms)
+  (if (eq *build-mode* mode)
       `(let ,bindings ,@forms)
       `(progn ,@forms)))
 
-(defmacro+ps when-dev (&rest forms)
-  (when (eq *build-mode* :dev)
+(defmacro+ps when-mode (mode &rest forms)
+  (when (eq *build-mode* mode)
     `(progn ,@forms)))
-
-(defmacro+ps when-prod (&rest forms)
-  (when (eq *build-mode* :prod)
-      `(progn ,@forms)))
 
 (defmacro+ps defcomponent (name hooks params &rest code)
   (let ((hook-names (loop for (bindings (hook . args)) in hooks
                           when (not (is-builtin-hook hook))
                             collect hook)))
     (declare (ignorable hook-names))
-    `(when-dev-let ((s (|$RefreshSig$|)))
+    `(when-mode-let :dev ((s (|$RefreshSig$|)))
        (defun ,name ,params
-         (when-dev (s))
+         (when-mode :dev (s))
          (destructuring-binds
           ,(loop for (bindings (hook . args)) in hooks collect
                  `(,bindings (,(if (is-builtin-hook hook)
                                    `(@ preact-hooks ,hook)
                                    hook) . ,args)))
           ,@code))
-       (when-dev
+       (when-mode :dev
          (s ,name
             ,(format nil "~{~a~^~%~}" (mapcar #'hook-signature hooks))
             false

@@ -644,7 +644,7 @@
                                                                                           delay (/ 1 4))))
                                                                        (return-from func))))))))
                                       "Hint")
-                         (when-dev
+                         (when-mode :dev
                           (psx
                            (:-ui-button ((on-click (lambda ()
                                                      (chain board-state
@@ -913,7 +913,7 @@
                         "mix-blend-mode" "overlay"
                         "background" "-webkit-radial-gradient(top,ellipse farthest-corner,hsla(0,0%,100%,.16) 100%,hsla(0,0%,100%,.08) 0),-webkit-radial-gradient(top,ellipse farthest-corner,hsla(0,0%,100%,.32) 0,hsla(0,0%,100%,0) 100%),-webkit-radial-gradient(top,ellipse farthest-corner,hsla(0,0%,100%,.32) 0,hsla(0,0%,100%,0) 64%)")))))))
 
-(when-dev
+(when-mode :dev
  (chain preact (render "" (@ document body) nil))
  (var root
       (let ((-app (psx (:-game ()))))
@@ -921,6 +921,6 @@
 
  (chain console (clear)))
 
-(when-prod
+(when-mode :prod
  (let ((-app (psx (:-game ()))))
    (chain preact (hydrate -app (@ document body)))))
