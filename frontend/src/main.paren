@@ -644,10 +644,12 @@
                                                                                           delay (/ 1 4))))
                                                                        (return-from func))))))))
                                       "Hint")
-                         (when-dev (:-ui-button ((on-click (lambda ()
-                                                             (chain board-state
-                                                                    (set (winning-state))))))
-                                                "Debug")))
+                         (when-dev
+                          (psx
+                           (:-ui-button ((on-click (lambda ()
+                                                     (chain board-state
+                                                            (set (winning-state))))))
+                                        "Debug"))))
                      (:span ((style (create color "white"
                                             "font-size" "15pt")))
                             (+ "FreeCell #" seed))))
